@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Carousel Builder — Andre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:wght@400;700;900&family=Inter:wght@400;500;600;700;800;900&family=Anton&family=Oswald:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a0a;color:#f5f5f5;font-family:'Manrope',sans-serif;font-size:13px;-webkit-font-smoothing:antialiased}
+  textarea,input,button{font-family:inherit;color:inherit;outline:none;border:none;background:transparent}
+  textarea{resize:none}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#262626;border-radius:4px}
+  ::-webkit-scrollbar-thumb:hover{background:#404040}
+  input[type="color"]{-webkit-appearance:none;appearance:none;border:none;cursor:pointer;background:transparent;padding:0}
+  input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
+  input[type="color"]::-webkit-color-swatch{border:none;border-radius:6px}
+  .range{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:#262626;border-radius:2px;outline:none}
+  .range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#D4FA27;cursor:pointer}
+  .range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#D4FA27;cursor:pointer;border:none}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="error" style="display:none;position:fixed;top:0;left:0;right:0;padding:20px;background:#7f1d1d;color:#fff;font-family:monospace;font-size:13px;white-space:pre-wrap;z-index:9999;max-height:60vh;overflow:auto;"></div>
+
+<script>
+(function(){
+  function showErr(msg){
+    var el = document.getElementById('error');
+    el.style.display = 'block';
+    el.textContent = (el.textContent ? el.textContent + '\n\n' : '') + msg;
+  }
+  window.addEventListener('error', function(ev){
+    showErr('[ERROR] ' + (ev.message || '') + '\n' + (ev.filename || '') + ':' + (ev.lineno || ''));
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    showErr('[PROMISE] ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason));
+  });
+})();
+</script>
+
+<script>
+'use strict';
+var React = window.React;
+var ReactDOM = window.ReactDOM;
+var h = React.createElement;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
+var useMemo = React.useMemo;
+var Fragment = React.Fragment;
+
+// ====================================================
+//                    CONSTANTS
+// ====================================================
+
+var UI = {
+  bg: '#0a0a0a',
+  surface: '#141414',
+  surfaceAlt: '#1a1a1a',
+  border: '#262626',
+  text: '#f5f5f5',
+  muted: '#888',
+  dim: '#555',
+  accent: '#D4FA27',
+  accentText: '#0a0a0a'
+};
+
+var THEMES = {
+  dark: {
+    name: 'Тёмная', bg: '#0F0F10', text: '#FFFFFF',
+    body: 'rgba(255,255,255,0.92)', muted: 'rgba(255,255,255,0.55)',
+    progressBg: 'rgba(255,255,255,0.18)', grid: 'rgba(255,255,255,0.04)'
+  },
+  light: {
+    name: 'Светлая', bg: '#F4F1EC', text: '#0F0F10',
+    body: 'rgba(15,15,16,0.85)', muted: 'rgba(15,15,16,0.45)',
+    progressBg: 'rgba(15,15,16,0.15)', grid: 'rgba(15,15,16,0.05)'
+  }
+};
+
+var FONT_SETS = {
+  mont: { name: 'Montserrat', display: 'Montserrat, sans-serif', body: 'Montserrat, sans-serif', weights: { display: '800', body: '500' } },
+  editorial: { name: 'Editorial', display: '"Playfair Display", serif', body: 'Manrope, sans-serif', weights: { display: '900', body: '400' } },
+  modern: { name: 'Modern', display: 'Inter, sans-serif', body: 'Inter, sans-serif', weights: { display: '900', body: '500' } },
+  bold: { name: 'Bold', display: 'Anton, sans-serif', body: 'Manrope, sans-serif', weights: { display: '400', body: '500' } },
+  classic: { name: 'Classic', display: 'Oswald, sans-serif', body: 'Manrope, sans-serif', weights: { display: '700', body: '500' } }
+};
+
+var ACCENT_PRESETS = ['#D4FA27','#FF6B5B','#E11D48','#3B82F6','#10B981','#F59E0B','#A855F7','#FFFFFF'];
+
+var SLIDE_TYPES = [
+  { key: 'cover', label: 'Обложка' },
+  { key: 'body',  label: 'Контент' },
+  { key: 'stat',  label: 'Цифра' },
+  { key: 'cta',   label: 'CTA' }
+];
+
+var THEME_CHOICES = [
+  { key: 'default', label: 'По умолчанию' },
+  { key: 'dark',    label: 'Тёмная' },
+  { key: 'light',   label: 'Светлая' }
+];
+
+var POSITIONS = [
+  { k: 'auto',   l: 'Авто' },
+  { k: 'top',    l: 'Сверху' },
+  { k: 'middle', l: 'Центр' },
+  { k: 'bottom', l: 'Снизу' }
+];
+
+var BACKDROPS = [
+  { k: 'none',  l: 'Без' },
+  { k: 'card',  l: 'Карточка' },
+  { k: 'quote', l: 'Цитата' }
+];
+
+// ====================================================
+//                    HELPERS
+// ====================================================
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function rgbaFromHex(hex, alpha) {
+  if (alpha == null) alpha = 1;
+  var s = (hex || '').replace('#', '');
+  if (s.length !== 6) return 'rgba(0,0,0,' + alpha + ')';
+  var r = parseInt(s.slice(0,2), 16);
+  var g = parseInt(s.slice(2,4), 16);
+  var b = parseInt(s.slice(4,6), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+function luminance(hex) {
+  var s = (hex || '').replace('#', '');
+  if (s.length !== 6) return 0;
+  var r = parseInt(s.slice(0,2), 16) / 255;
+  var g = parseInt(s.slice(2,4), 16) / 255;
+  var b = parseInt(s.slice(4,6), 16) / 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+function contrastText(bg) { return luminance(bg) > 0.5 ? '#0a0a0a' : '#FFFFFF'; }
+
+function effectiveAccent(accent, bg) {
+  var la = luminance(accent), lb = luminance(bg);
+  if (Math.abs(la - lb) < 0.15) return lb > 0.5 ? '#0a0a0a' : '#FFFFFF';
+  return accent;
+}
+
+var imageCache = new Map();
+function loadImage(src) {
+  return new Promise(function(resolve) {
+    if (!src) { resolve(null); return; }
+    if (imageCache.has(src)) { resolve(imageCache.get(src)); return; }
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() { imageCache.set(src, img); resolve(img); };
+    img.onerror = function() { resolve(null); };
+    img.src = src;
+  });
+}
+
+function fileToResizedDataURL(file, maxW, maxH) {
+  if (maxW == null) maxW = 1080;
+  if (maxH == null) maxH = 1350;
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width, hh = img.height;
+        var r = Math.min(maxW / w, maxH / hh, 1);
+        w = Math.round(w * r); hh = Math.round(hh * r);
+        var c = document.createElement('canvas');
+        c.width = w; c.height = hh;
+        c.getContext('2d').drawImage(img, 0, 0, w, hh);
+        resolve(c.toDataURL('image/jpeg', 0.92));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function roundRect(ctx, x, y, w, hh, r) {
+  if (r < 0) r = 0;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + hh - r);
+  ctx.arcTo(x + w, y + hh, x + w - r, y + hh, r);
+  ctx.lineTo(x + r, y + hh);
+  ctx.arcTo(x, y + hh, x, y + hh - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function tokenizeAccent(text) {
+  if (!text) return [];
+  return text.split(/(\*[^*]+\*)/g).filter(function(s){ return s !== ''; });
+}
+
+function wrapAccentText(ctx, text, maxWidth) {
+  if (!text) return [];
+  var paragraphs = String(text).split('\n');
+  var allLines = [];
+  for (var p = 0; p < paragraphs.length; p++) {
+    var para = paragraphs[p];
+    if (para.trim() === '') {
+      allLines.push([{ text: '', accent: false, w: 0 }]);
+      continue;
+    }
+    var tokens = tokenizeAccent(para);
+    var words = [];
+    for (var i = 0; i < tokens.length; i++) {
+      var tok = tokens[i];
+      var isAccent = tok.length > 1 && tok.charAt(0) === '*' && tok.charAt(tok.length - 1) === '*';
+      var tt = isAccent ? tok.slice(1, -1) : tok;
+      var parts = tt.split(/(\s+)/g).filter(function(s){ return s !== ''; });
+      for (var j = 0; j < parts.length; j++) {
+        words.push({ text: parts[j], accent: isAccent });
+      }
+    }
+    var curLine = [];
+    var curW = 0;
+    for (var k = 0; k < words.length; k++) {
+      var word = words[k];
+      var ww = ctx.measureText(word.text).width;
+      var isSpace = /^\s+$/.test(word.text);
+      if (isSpace) {
+        if (curLine.length > 0 && curW + ww <= maxWidth) {
+          curLine.push({ text: word.text, accent: word.accent, w: ww });
+          curW += ww;
+        }
+        continue;
+      }
+      if (curW + ww > maxWidth && curLine.length > 0) {
+        while (curLine.length && /^\s+$/.test(curLine[curLine.length - 1].text)) curLine.pop();
+        allLines.push(curLine);
+        curLine = [{ text: word.text, accent: word.accent, w: ww }];
+        curW = ww;
+      } else {
+        curLine.push({ text: word.text, accent: word.accent, w: ww });
+        curW += ww;
+      }
+    }
+    if (curLine.length > 0) {
+      while (curLine.length && /^\s+$/.test(curLine[curLine.length - 1].text)) curLine.pop();
+      allLines.push(curLine);
+    }
+  }
+  return allLines;
+}
+
+function drawWrappedAccent(ctx, lines, x, y, lineH, normalColor, accentColor) {
+  var cy = y;
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var cx = x;
+    for (var j = 0; j < line.length; j++) {
+      var seg = line[j];
+      ctx.fillStyle = seg.accent ? accentColor : normalColor;
+      ctx.fillText(seg.text, cx, cy);
+      cx += seg.w;
+    }
+    cy += lineH;
+  }
+  return cy;
+}
+
+// ====================================================
+//                  SLIDE RENDERING
+// ====================================================
+
+function drawSlide(canvas, slide, opts, index, total) {
+  if (!canvas || !slide) return;
+  var W = 1080, H = 1350;
+  canvas.width = W; canvas.height = H;
+  var ctx = canvas.getContext('2d');
+  ctx.textBaseline = 'top';
+
+  var themeKey = (slide.theme && slide.theme !== 'default') ? slide.theme : opts.theme;
+  var theme = THEMES[themeKey] || THEMES.dark;
+  var fonts = FONT_SETS[opts.fontId] || FONT_SETS.mont;
+
+  var hasImage = !!(slide.coverImage && imageCache.has(slide.coverImage));
+
+  // 1. Background
+  if (hasImage) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    var img = imageCache.get(slide.coverImage);
+    var ir = img.width / img.height;
+    var cr = W / H;
+    var dw, dh, dx, dy;
+    if (ir > cr) { dh = H; dw = H * ir; dx = (W - dw) / 2; dy = 0; }
+    else { dw = W; dh = W / ir; dx = 0; dy = (H - dh) / 2; }
+    ctx.drawImage(img, dx, dy, dw, dh);
+    if (slide.blur) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, H * 0.5, W, H * 0.5);
+      ctx.clip();
+      try { ctx.filter = 'blur(22px)'; } catch (e) {}
+      ctx.drawImage(img, dx, dy, dw, dh);
+      ctx.restore();
+    }
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    var gStr = slide.gradientStrength != null ? slide.gradientStrength : 80;
+    grad.addColorStop(0, 'rgba(0,0,0,' + Math.min(0.6, gStr / 200) + ')');
+    grad.addColorStop(0.5, 'rgba(0,0,0,' + (gStr / 150) + ')');
+    grad.addColorStop(1, 'rgba(0,0,0,' + Math.min(0.95, gStr / 100) + ')');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 2. Grid
+  if (opts.grid && !hasImage) {
+    ctx.strokeStyle = theme.grid;
+    ctx.lineWidth = 1;
+    for (var gx = 0; gx <= W; gx += 80) {
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+    }
+    for (var gy = 0; gy <= H; gy += 80) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+    }
+  }
+
+  var textColor = hasImage ? '#FFFFFF' : theme.text;
+  var bodyColor = hasImage ? 'rgba(255,255,255,0.92)' : theme.body;
+  var mutedColor = hasImage ? 'rgba(255,255,255,0.75)' : theme.muted;
+  var accentEff = hasImage ? opts.accent : effectiveAccent(opts.accent, theme.bg);
+  var ctaTextC = contrastText(opts.accent);
+
+  // 3. Top: accent line + counter
+  var TOP_Y = 80;
+  ctx.fillStyle = accentEff;
+  ctx.fillRect(72, TOP_Y, 240, 3);
+  ctx.font = '500 22px ' + fonts.body;
+  ctx.fillStyle = mutedColor;
+  ctx.textAlign = 'right';
+  ctx.fillText(pad2(index + 1) + ' / ' + pad2(total), W - 72, TOP_Y - 8);
+  ctx.textAlign = 'left';
+
+  // 4. Compute layout
+  var PAD = 72;
+  var CW = W - PAD * 2;
+  var isCover = slide.type === 'cover';
+  var isStat = slide.type === 'stat';
+  var isCta = slide.type === 'cta';
+
+  var SZ = {
+    eyebrow: 24, headlineCover: 88, headline: 72, body: 36,
+    statValue: 240, statLabel: 34, cta: 36, footer: 24, swipe: 24
+  };
+
+  var units = [];
+
+  if (slide.eyebrow) {
+    var ebText = slide.eyebrow;
+    var ebFont = '700 ' + SZ.eyebrow + 'px ' + fonts.body;
+    units.push({
+      group: 'text',
+      height: SZ.eyebrow * 1.2 + 20,
+      draw: function(y) {
+        ctx.font = ebFont;
+        ctx.fillStyle = accentEff;
+        ctx.textAlign = 'left';
+        ctx.fillText(String(ebText).toUpperCase(), PAD, y);
+      }
+    });
+  }
+
+  if (isStat && slide.stat && slide.stat.value) {
+    var vSize = SZ.statValue;
+    var vFont = fonts.weights.display + ' ' + vSize + 'px ' + fonts.display;
+    var vText = String(slide.stat.value);
+    units.push({
+      group: 'text',
+      height: vSize * 0.95,
+      draw: function(y) {
+        ctx.font = vFont;
+        ctx.fillStyle = accentEff;
+        ctx.textAlign = 'left';
+        ctx.fillText(vText, PAD, y);
+      }
+    });
+    if (slide.stat.label) {
+      var labFont = fonts.weights.body + ' ' + SZ.statLabel + 'px ' + fonts.body;
+      ctx.font = labFont;
+      var labLines = wrapAccentText(ctx, slide.stat.label, CW);
+      var lh1 = SZ.statLabel * 1.35;
+      units.push({
+        group: 'text',
+        height: labLines.length * lh1,
+        draw: function(y) {
+          ctx.font = labFont;
+          drawWrappedAccent(ctx, labLines, PAD, y, lh1, bodyColor, accentEff);
+        }
+      });
+    }
+  }
+
+  if (slide.headline) {
+    var hSize = isCover ? SZ.headlineCover : SZ.headline;
+    var hFont = fonts.weights.display + ' ' + hSize + 'px ' + fonts.display;
+    ctx.font = hFont;
+    var hLines = wrapAccentText(ctx, slide.headline, CW);
+    var lh2 = hSize * 1.05;
+    units.push({
+      group: 'text',
+      height: hLines.length * lh2,
+      draw: function(y) {
+        ctx.font = hFont;
+        drawWrappedAccent(ctx, hLines, PAD, y, lh2, textColor, accentEff);
+      }
+    });
+  }
+
+  if (slide.body && !isStat) {
+    var bFont = fonts.weights.body + ' ' + SZ.body + 'px ' + fonts.body;
+    ctx.font = bFont;
+    var bLines = wrapAccentText(ctx, slide.body, CW);
+    var lh3 = SZ.body * 1.4;
+    units.push({
+      group: 'text',
+      height: bLines.length * lh3,
+      draw: function(y) {
+        ctx.font = bFont;
+        drawWrappedAccent(ctx, bLines, PAD, y, lh3, bodyColor, accentEff);
+      }
+    });
+  }
+
+  if (isStat && slide.body) {
+    // Extra explanation for stat slide
+    var sFont = fonts.weights.body + ' 28px ' + fonts.body;
+    ctx.font = sFont;
+    var sLines = wrapAccentText(ctx, slide.body, CW);
+    var lh4 = 28 * 1.4;
+    units.push({
+      group: 'text',
+      height: sLines.length * lh4,
+      draw: function(y) {
+        ctx.font = sFont;
+        drawWrappedAccent(ctx, sLines, PAD, y, lh4, mutedColor, accentEff);
+      }
+    });
+  }
+
+  if (isCta && slide.cta) {
+    var ctaText = String(slide.cta);
+    var cFont = '700 ' + SZ.cta + 'px ' + fonts.body;
+    ctx.font = cFont;
+    var tw = ctx.measureText(ctaText).width;
+    var bh = 88, bpx = 44;
+    var bw = Math.min(CW, tw + bpx * 2);
+    units.push({
+      group: 'cta',
+      height: bh + 24,
+      draw: function(y) {
+        roundRect(ctx, PAD, y, bw, bh, bh / 2);
+        ctx.fillStyle = accentEff;
+        ctx.fill();
+        ctx.font = cFont;
+        ctx.fillStyle = ctaTextC;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ctaText, PAD + bpx, y + bh / 2);
+        ctx.textBaseline = 'top';
+      }
+    });
+  }
+
+  var GAP_TEXT = 30, GAP_GROUP = 50;
+  var totalH = 0;
+  for (var u = 0; u < units.length; u++) {
+    totalH += units[u].height;
+    if (u < units.length - 1) {
+      totalH += units[u].group === units[u + 1].group ? GAP_TEXT : GAP_GROUP;
+    }
+  }
+
+  var CONTENT_TOP = 200, CONTENT_BOTTOM = H - 220;
+  var CONTENT_H = CONTENT_BOTTOM - CONTENT_TOP;
+  var startY;
+  var pos = slide.position || 'auto';
+  if (pos === 'top') startY = CONTENT_TOP;
+  else if (pos === 'bottom') startY = CONTENT_BOTTOM - totalH;
+  else if (pos === 'middle') startY = CONTENT_TOP + (CONTENT_H - totalH) / 2;
+  else {
+    if (isCover) startY = CONTENT_BOTTOM - totalH;
+    else if (isStat) startY = CONTENT_TOP + (CONTENT_H - totalH) / 2;
+    else startY = CONTENT_TOP + (CONTENT_H - totalH) * 0.45;
+  }
+  startY = Math.max(CONTENT_TOP, Math.min(CONTENT_BOTTOM - totalH, startY));
+
+  // 5. Backdrop
+  var backdropStyle = slide.backdropStyle || 'none';
+  if (backdropStyle !== 'none' && units.length > 0) {
+    var yScan = startY;
+    var by1 = null, by2 = null;
+    for (var v = 0; v < units.length; v++) {
+      if (units[v].group === 'text') {
+        if (by1 === null) by1 = yScan;
+        by2 = yScan + units[v].height;
+      }
+      yScan += units[v].height;
+      if (v < units.length - 1) {
+        yScan += units[v].group === units[v + 1].group ? GAP_TEXT : GAP_GROUP;
+      }
+    }
+    if (by1 !== null && by2 !== null) {
+      var padX = 36, padY = 28;
+      var bx = PAD - padX;
+      var byT = by1 - padY;
+      var bw2 = CW + padX * 2;
+      var bh2 = (by2 - by1) + padY * 2;
+      var opacityDefault = backdropStyle === 'quote' ? 25 : 20;
+      var op = (slide.backdropOpacity != null ? slide.backdropOpacity : opacityDefault) / 100;
+      if (backdropStyle === 'quote') {
+        ctx.fillStyle = rgbaFromHex(opts.accent, op);
+        roundRect(ctx, bx, byT, bw2, bh2, 16);
+        ctx.fill();
+        ctx.fillStyle = accentEff;
+        ctx.fillRect(bx, byT, 10, bh2);
+      } else {
+        ctx.fillStyle = rgbaFromHex(opts.accent, op);
+        roundRect(ctx, bx, byT, bw2, bh2, 20);
+        ctx.fill();
+      }
+    }
+  }
+
+  // 6. Draw units
+  var cy = startY;
+  for (var w2 = 0; w2 < units.length; w2++) {
+    units[w2].draw(cy);
+    cy += units[w2].height;
+    if (w2 < units.length - 1) {
+      cy += units[w2].group === units[w2 + 1].group ? GAP_TEXT : GAP_GROUP;
+    }
+  }
+
+  // 7. Footer
+  var FOOTER_Y = H - 100;
+  if (opts.showNickname && opts.nickname) {
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = accentEff;
+    ctx.beginPath();
+    ctx.arc(PAD + 6, FOOTER_Y, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '500 ' + SZ.footer + 'px ' + fonts.body;
+    ctx.fillStyle = mutedColor;
+    ctx.fillText(opts.nickname, PAD + 28, FOOTER_Y);
+  }
+  if (opts.showSwipe && index < total - 1 && !isCta) {
+    var sText = 'ЛИСТАЙ →';
+    ctx.font = '700 ' + SZ.swipe + 'px ' + fonts.body;
+    var stw = ctx.measureText(sText).width;
+    var sbh = 64, sbpx = 28;
+    var sbw = stw + sbpx * 2;
+    var sbx = W - PAD - sbw;
+    var sby = FOOTER_Y - sbh / 2;
+    if (opts.swipeFilled) {
+      roundRect(ctx, sbx, sby, sbw, sbh, sbh / 2);
+      ctx.fillStyle = accentEff;
+      ctx.fill();
+      ctx.fillStyle = ctaTextC;
+    } else {
+      roundRect(ctx, sbx, sby, sbw, sbh, sbh / 2);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = accentEff;
+      ctx.stroke();
+      ctx.fillStyle = accentEff;
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sText, sbx + sbw / 2, sby + sbh / 2);
+  }
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+
+  // 8. Progress bar
+  if (opts.showProgress) {
+    var pbY = H - 24, pbX = PAD, pbW = W - PAD * 2, pbH = 4;
+    ctx.fillStyle = theme.progressBg;
+    roundRect(ctx, pbX, pbY, pbW, pbH, 2);
+    ctx.fill();
+    var filled = ((index + 1) / total) * pbW;
+    ctx.fillStyle = accentEff;
+    roundRect(ctx, pbX, pbY, filled, pbH, 2);
+    ctx.fill();
+  }
+}
+
+// ====================================================
+//                  COMPONENTS
+// ====================================================
+
+function SlideCanvas(props) {
+  var canvasRef = useRef(null);
+  useEffect(function() {
+    var cancelled = false;
+    (function(){
+      var p = props.slide && props.slide.coverImage ? loadImage(props.slide.coverImage) : Promise.resolve(null);
+      p.then(function() {
+        if (cancelled) return;
+        if (canvasRef.current) {
+          try {
+            drawSlide(canvasRef.current, props.slide, props.opts, props.index, props.total);
+          } catch (err) { console.error('drawSlide error:', err); }
+        }
+      });
+    })();
+    return function() { cancelled = true; };
+  }, [props.slide, props.opts, props.index, props.total]);
+  return h('canvas', {
+    ref: canvasRef,
+    width: 1080, height: 1350,
+    style: { width: props.width, height: props.height, display: 'block', borderRadius: 8 }
+  });
+}
+
+function btnStyle(kind, disabled) {
+  var base = {
+    padding: '8px 14px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+    letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+    cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+    border: 'none'
+  };
+  if (kind === 'primary') return Object.assign({}, base, { background: UI.accent, color: UI.accentText });
+  if (kind === 'outline') return Object.assign({}, base, { background: 'transparent', color: UI.text, border: '1px solid ' + UI.border });
+  if (kind === 'ghost') return Object.assign({}, base, { background: 'transparent', color: UI.muted, padding: '8px 10px' });
+  return base;
+}
+
+function Section(props) {
+  var st = useState(props.defaultOpen !== false);
+  var open = st[0]; var setOpen = st[1];
+  return h('div', { style: { marginBottom: 18 } },
+    h('button', {
+      onClick: function() { setOpen(!open); },
+      style: {
+        width: '100%', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', padding: '8px 0', cursor: 'pointer',
+        fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+        color: UI.muted, textTransform: 'uppercase'
+      }
+    },
+      h('span', null, props.label),
+      h('span', { style: { fontSize: 11 } }, open ? '−' : '+')
+    ),
+    open && h('div', { style: { marginTop: 6 } }, props.children)
+  );
+}
+
+function Field(props) {
+  return h('div', { style: { marginBottom: 10 } },
+    h('div', { style: { fontSize: 10, color: UI.muted, marginBottom: 4 } }, props.label),
+    props.children
+  );
+}
+
+function TextInput(props) {
+  return h('input', {
+    type: 'text',
+    value: props.value == null ? '' : props.value,
+    placeholder: props.placeholder || '',
+    onChange: function(ev) { if (props.onChange) props.onChange(ev.target.value); },
+    style: {
+      width: '100%', padding: '8px 10px', background: UI.surfaceAlt,
+      border: '1px solid ' + UI.border, borderRadius: 6, fontSize: 13, color: UI.text
+    }
+  });
+}
+
+function TextArea(props) {
+  return h('textarea', {
+    value: props.value == null ? '' : props.value,
+    placeholder: props.placeholder || '',
+    rows: props.rows || 3,
+    onChange: function(ev) { if (props.onChange) props.onChange(ev.target.value); },
+    style: {
+      width: '100%', padding: '8px 10px', background: UI.surfaceAlt,
+      border: '1px solid ' + UI.border, borderRadius: 6, fontSize: 13,
+      color: UI.text, lineHeight: 1.4
+    }
+  });
+}
+
+function Toggle(props) {
+  return h('button', {
+    onClick: props.onClick,
+    style: {
+      padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+      background: props.active ? UI.text : UI.surfaceAlt,
+      color: props.active ? UI.bg : (props.dim ? UI.muted : UI.text),
+      border: '1px solid ' + (props.active ? UI.text : UI.border),
+      cursor: 'pointer', flex: props.full ? 1 : 'none', whiteSpace: 'nowrap'
+    }
+  }, props.children);
+}
+
+function Range(props) {
+  return h('div', null,
+    props.label && h('div', { style: { fontSize: 10, color: UI.muted, marginBottom: 6 } },
+      props.label + ' · ' + props.value + '%'),
+    h('input', {
+      type: 'range', className: 'range',
+      min: props.min == null ? 0 : props.min,
+      max: props.max == null ? 100 : props.max,
+      value: props.value,
+      onChange: function(ev) { props.onChange(parseInt(ev.target.value, 10)); }
+    })
+  );
+}
+
+// ---------- HEADER ----------
+function HeaderBar(props) {
+  return h('div', { style: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '10px 16px', borderBottom: '1px solid ' + UI.border, background: UI.surface
+  } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: 14 } },
+      h('div', { style: {
+        padding: '6px 12px', borderRadius: 999, border: '1px solid ' + UI.accent,
+        color: UI.accent, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em'
+      } }, '● CAROUSEL · ANDRE · v2'),
+      h('input', {
+        type: 'text', value: props.opts.topic || '',
+        onChange: function(ev) { props.setOpts(Object.assign({}, props.opts, { topic: ev.target.value })); },
+        placeholder: 'Название карусели',
+        style: {
+          background: 'transparent', border: 'none', borderBottom: '1px solid ' + UI.border,
+          padding: '4px 6px', fontSize: 13, color: UI.text, width: 280
+        }
+      })
+    ),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+      h('span', { style: { fontSize: 10, color: UI.muted, marginRight: 4 } },
+        props.totalSlides + ' · 1080×1350'),
+      h('button', { onClick: props.onImportText, style: btnStyle('outline') }, '↓ ВСТАВИТЬ ТЕКСТ'),
+      h('button', { onClick: props.onImportJSON, style: btnStyle('outline') }, '↓ JSON'),
+      h('button', { onClick: props.onExportJSON, style: btnStyle('outline') }, '↑ JSON'),
+      h('button', {
+        onClick: props.onExportAll, disabled: props.isExporting,
+        style: btnStyle('primary', props.isExporting)
+      }, props.isExporting ? (props.exportProgress + '%') : 'СКАЧАТЬ ВСЕ ↓'),
+      h('button', { onClick: props.onReset, style: btnStyle('ghost'), title: 'Сброс' }, '⟲')
+    )
+  );
+}
+
+// ---------- LEFT PANEL ----------
+function LeftPanel(props) {
+  var opts = props.opts;
+  function update(k, v) {
+    var next = Object.assign({}, opts); next[k] = v; props.setOpts(next);
+  }
+  return h('div', { style: {
+    width: 280, background: UI.surface, borderRight: '1px solid ' + UI.border,
+    padding: 18, overflowY: 'auto', flexShrink: 0
+  } },
+    h(Section, { label: 'Тема всей карусели' },
+      h('div', { style: { display: 'flex', gap: 6 } },
+        ['dark', 'light'].map(function(k) {
+          return h(Toggle, {
+            key: k, full: true, active: opts.theme === k,
+            onClick: function() { update('theme', k); }
+          }, THEMES[k].name);
+        })
+      ),
+      h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.4 } },
+        'На каждом слайде можно поставить свою тему — вне зависимости от общей.')
+    ),
+    h(Section, { label: 'Акцентный цвет' },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
+        h('input', {
+          type: 'color', value: opts.accent,
+          onChange: function(ev) { update('accent', ev.target.value); },
+          style: { width: 40, height: 32, borderRadius: 6, background: opts.accent }
+        }),
+        h('input', {
+          type: 'text', value: opts.accent,
+          onChange: function(ev) { update('accent', ev.target.value); },
+          style: {
+            flex: 1, padding: '6px 10px', background: UI.surfaceAlt,
+            border: '1px solid ' + UI.border, borderRadius: 6, fontSize: 12,
+            fontFamily: 'monospace', color: UI.text
+          }
+        })
+      ),
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 } },
+        ACCENT_PRESETS.map(function(c) {
+          return h('button', {
+            key: c,
+            onClick: function() { update('accent', c); },
+            style: {
+              width: '100%', aspectRatio: '1/1', borderRadius: 6, background: c, cursor: 'pointer',
+              border: opts.accent === c ? '2px solid ' + UI.text : '1px solid ' + UI.border
+            }
+          });
+        })
+      )
+    ),
+    h(Section, { label: 'Шрифт' },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        Object.keys(FONT_SETS).map(function(k) {
+          var f = FONT_SETS[k];
+          return h('button', {
+            key: k,
+            onClick: function() { update('fontId', k); },
+            style: {
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+              background: opts.fontId === k ? UI.text : UI.surfaceAlt,
+              color: opts.fontId === k ? UI.bg : UI.text,
+              border: '1px solid ' + (opts.fontId === k ? UI.text : UI.border)
+            }
+          },
+            h('span', null, f.name),
+            h('span', { style: { fontFamily: f.display, fontSize: 11, opacity: 0.7 } }, 'Aa Бб')
+          );
+        })
+      )
+    ),
+    h(Section, { label: 'Декор' },
+      h(Toggle, { full: true, active: opts.grid, onClick: function() { update('grid', !opts.grid); } },
+        'Сетка ' + (opts.grid ? '✓' : '')),
+      h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.4 } },
+        'Полупрозрачная сетка 80px поверх фона.')
+    ),
+    h(Section, { label: 'Подпись и декор' },
+      h(Field, { label: 'Ник в углу слайда' },
+        h(TextInput, {
+          value: opts.nickname,
+          onChange: function(v) { update('nickname', v); },
+          placeholder: '@andre'
+        })
+      ),
+      h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 } },
+        h(Toggle, { full: true, active: opts.showNickname, onClick: function() { update('showNickname', !opts.showNickname); } },
+          'Ник ' + (opts.showNickname ? '✓' : '')),
+        h(Toggle, { full: true, active: opts.showSwipe, onClick: function() { update('showSwipe', !opts.showSwipe); } },
+          'Листай → ' + (opts.showSwipe ? '✓' : '')),
+        h(Toggle, { full: true, active: opts.showProgress, onClick: function() { update('showProgress', !opts.showProgress); } },
+          'Прогресс ' + (opts.showProgress ? '✓' : '')),
+        h(Toggle, { full: true, active: opts.swipeFilled, onClick: function() { update('swipeFilled', !opts.swipeFilled); } },
+          'Заливка ' + (opts.swipeFilled ? '✓' : ''))
+      )
+    )
+  );
+}
+
+// ---------- SLIDE EDITOR ----------
+function SlideEditor(props) {
+  var slide = props.slide;
+  if (!slide) return h('div', { style: { width: 340, padding: 18, color: UI.muted } }, 'Нет слайда');
+  function update(k, v) {
+    var next = Object.assign({}, slide); next[k] = v; props.onChange(next);
+  }
+  function updateStat(k, v) {
+    var st = Object.assign({}, slide.stat || {}); st[k] = v;
+    var next = Object.assign({}, slide); next.stat = st; props.onChange(next);
+  }
+  function handleFile(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    fileToResizedDataURL(file, 1080, 1350).then(function(url) {
+      var next = Object.assign({}, slide); next.coverImage = url; props.onChange(next);
+    }).catch(function(err) { console.error(err); });
+    ev.target.value = '';
+  }
+
+  return h('div', { style: {
+    width: 340, background: UI.surface, borderLeft: '1px solid ' + UI.border,
+    padding: 18, overflowY: 'auto', flexShrink: 0
+  } },
+    h('div', { style: { fontSize: 11, color: UI.muted, marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' } }, 'Редактор · слайд'),
+    h('div', { style: { fontSize: 10, color: UI.dim, marginBottom: 14 } },
+      'Используй *звёздочки* для акцентного цвета.'),
+    h(Section, { label: 'Тип слайда' },
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 } },
+        SLIDE_TYPES.map(function(t) {
+          return h(Toggle, {
+            key: t.key, full: true, active: slide.type === t.key,
+            onClick: function() { update('type', t.key); }
+          }, t.label);
+        })
+      )
+    ),
+    h(Section, { label: 'Тема этого слайда' },
+      h('div', { style: { display: 'flex', gap: 4 } },
+        THEME_CHOICES.map(function(t) {
+          return h(Toggle, {
+            key: t.key, full: true, dim: true,
+            active: (slide.theme || 'default') === t.key,
+            onClick: function() { update('theme', t.key); }
+          }, t.label);
+        })
+      )
+    ),
+    h(Section, { label: 'Содержание' },
+      h(Field, { label: 'Над-заголовок (мелкий капс, опц.)' },
+        h(TextInput, {
+          value: slide.eyebrow,
+          onChange: function(v) { update('eyebrow', v); },
+          placeholder: 'РАЗВОРОТ · ШАГ 1 · ВЫПУСК 01'
+        })
+      ),
+      slide.type === 'stat'
+        ? h(Fragment, null,
+            h(Field, { label: 'Цифра' },
+              h(TextInput, {
+                value: slide.stat && slide.stat.value,
+                onChange: function(v) { updateStat('value', v); },
+                placeholder: '73%'
+              })
+            ),
+            h(Field, { label: 'Подпись к цифре' },
+              h(TextArea, {
+                value: slide.stat && slide.stat.label,
+                onChange: function(v) { updateStat('label', v); },
+                placeholder: 'людей делают эту ошибку',
+                rows: 2
+              })
+            ),
+            h(Field, { label: 'Доп. пояснение (опц.)' },
+              h(TextArea, {
+                value: slide.body, onChange: function(v) { update('body', v); },
+                placeholder: 'короткое объяснение цифры', rows: 2
+              })
+            )
+          )
+        : h(Fragment, null,
+            h(Field, { label: 'Заголовок (*звёздочки* = акцент)' },
+              h(TextArea, {
+                value: slide.headline, onChange: function(v) { update('headline', v); },
+                placeholder: 'ЗАГОЛОВОК СЛАЙДА 🎯', rows: 2
+              })
+            ),
+            h(Field, { label: 'Тело слайда' },
+              h(TextArea, {
+                value: slide.body, onChange: function(v) { update('body', v); },
+                placeholder: 'тело слайда в нижнем регистре...', rows: 5
+              })
+            )
+          ),
+      slide.type === 'cta'
+        ? h(Field, { label: 'Текст кнопки' },
+            h(TextInput, {
+              value: slide.cta, onChange: function(v) { update('cta', v); },
+              placeholder: 'Подписаться'
+            })
+          )
+        : h(Field, { label: 'Микро-CTA / клиффхэнгер' },
+            h(TextInput, {
+              value: slide.cta, onChange: function(v) { update('cta', v); },
+              placeholder: 'а вот что работает 👇'
+            })
+          )
+    ),
+    h(Section, { label: 'Фото и подложка', defaultOpen: false },
+      !slide.coverImage && h('label', {
+        style: {
+          display: 'block', textAlign: 'center', padding: '14px 12px',
+          border: '1px dashed ' + UI.border, borderRadius: 6, color: UI.muted,
+          fontSize: 11, fontWeight: 500, cursor: 'pointer', marginBottom: 10
+        }
+      },
+        h('input', { type: 'file', accept: 'image/*', onChange: handleFile, style: { display: 'none' } }),
+        '+ Загрузить фото'
+      ),
+      slide.coverImage && h('div', { style: { marginBottom: 10 } },
+        h('div', { style: { position: 'relative', borderRadius: 6, overflow: 'hidden', border: '1px solid ' + UI.border } },
+          h('img', { src: slide.coverImage, style: { display: 'block', width: '100%', maxHeight: 140, objectFit: 'cover' } }),
+          h('button', {
+            onClick: function() { update('coverImage', null); },
+            style: {
+              position: 'absolute', top: 6, right: 6, padding: '4px 8px',
+              borderRadius: 4, background: 'rgba(0,0,0,0.7)', color: '#fff',
+              fontSize: 10, fontWeight: 600, cursor: 'pointer'
+            }
+          }, '× Удалить')
+        ),
+        h('div', { style: { marginTop: 8 } },
+          h(Range, {
+            value: slide.gradientStrength != null ? slide.gradientStrength : 80,
+            onChange: function(v) { update('gradientStrength', v); },
+            label: 'Затемнение фото'
+          })
+        ),
+        h('div', { style: { marginTop: 8 } },
+          h(Toggle, {
+            full: true, active: !!slide.blur,
+            onClick: function() { update('blur', !slide.blur); }
+          }, 'Блюр нижней половины ' + (slide.blur ? '✓' : ''))
+        )
+      ),
+      h(Field, { label: 'Положение текста' },
+        h('div', { style: { display: 'flex', gap: 4 } },
+          POSITIONS.map(function(p) {
+            return h(Toggle, {
+              key: p.k, full: true, dim: true,
+              active: (slide.position || 'auto') === p.k,
+              onClick: function() { update('position', p.k); }
+            }, p.l);
+          })
+        )
+      ),
+      h(Field, { label: 'Подложка под текст' },
+        h('div', { style: { display: 'flex', gap: 4 } },
+          BACKDROPS.map(function(b) {
+            return h(Toggle, {
+              key: b.k, full: true, dim: true,
+              active: (slide.backdropStyle || 'none') === b.k,
+              onClick: function() { update('backdropStyle', b.k); }
+            }, b.l);
+          })
+        ),
+        slide.backdropStyle && slide.backdropStyle !== 'none' && h('div', { style: { marginTop: 8 } },
+          h(Range, {
+            value: slide.backdropOpacity != null ? slide.backdropOpacity : (slide.backdropStyle === 'quote' ? 25 : 20),
+            onChange: function(v) { update('backdropOpacity', v); },
+            label: 'Прозрачность'
+          })
+        )
+      )
+    )
+  );
+}
+
+// ---------- THUMB STRIP ----------
+function ThumbStrip(props) {
+  return h('div', { style: {
+    width: 170, background: UI.surface, borderLeft: '1px solid ' + UI.border,
+    padding: '14px 10px', overflowY: 'auto', flexShrink: 0
+  } },
+    h('div', { style: {
+      fontSize: 9, color: UI.muted, fontWeight: 700, letterSpacing: '0.16em',
+      textTransform: 'uppercase', padding: '0 4px', marginBottom: 8
+    } }, 'Слайды'),
+    h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+      props.slides.map(function(slide, i) {
+        var typeLabel = (SLIDE_TYPES.find(function(t) { return t.key === slide.type; }) || {}).label || slide.type;
+        return h('div', { key: slide.id || i, style: { display: 'flex', flexDirection: 'column', gap: 3 } },
+          h('button', {
+            onClick: function() { props.setActive(i); },
+            style: {
+              padding: 0, cursor: 'pointer', position: 'relative',
+              border: '1.5px solid ' + (props.active === i ? UI.accent : UI.border),
+              borderRadius: 4, overflow: 'hidden', background: UI.bg
+            }
+          },
+            h(SlideCanvas, {
+              slide: slide, opts: props.opts, index: i, total: props.slides.length,
+              width: 146, height: 183
+            })
+          ),
+          h('div', { style: {
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '0 2px', fontSize: 9,
+            color: props.active === i ? UI.accent : UI.muted,
+            letterSpacing: '0.06em', fontWeight: 600
+          } },
+            h('span', null, pad2(i + 1) + ' · ' + (typeLabel ? typeLabel.toUpperCase() : '')),
+            props.slides.length > 1 && h('div', { style: { display: 'flex', gap: 4 } },
+              h('button', { onClick: function(ev) { ev.stopPropagation(); props.onMove(i, -1); },
+                style: iconBtn }, '↑'),
+              h('button', { onClick: function(ev) { ev.stopPropagation(); props.onMove(i, 1); },
+                style: iconBtn }, '↓'),
+              h('button', { onClick: function(ev) { ev.stopPropagation(); props.onDup(i); },
+                style: iconBtn }, '⎘'),
+              h('button', { onClick: function(ev) { ev.stopPropagation(); props.onRemove(i); },
+                style: Object.assign({}, iconBtn, { color: '#ef4444' }) }, '×')
+            )
+          )
+        );
+      }),
+      props.slides.length < 12 && h('button', {
+        onClick: function() { props.onAdd('body'); },
+        style: {
+          marginTop: 8, padding: '10px', border: '1px dashed ' + UI.border,
+          borderRadius: 4, color: UI.muted, fontSize: 11, cursor: 'pointer',
+          background: 'transparent'
+        }
+      }, '+ добавить')
+    )
+  );
+}
+
+var iconBtn = {
+  padding: 0, fontSize: 12, color: UI.muted, cursor: 'pointer',
+  background: 'transparent', lineHeight: 1
+};
+
+// ---------- IMPORT TEXT MODAL ----------
+function parseSlideText(text) {
+  if (!text || !text.trim()) return [];
+  var parts = text.split(/\n?\s*[■▪#]\s*СЛАЙД\s+/gi).filter(function(s){ return s.trim(); });
+  var result = [];
+  for (var i = 0; i < parts.length; i++) {
+    var part = parts[i];
+    var lines = part.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
+    if (lines.length === 0) continue;
+    var firstLine = lines[0];
+    var m = firstLine.match(/^(\d+)\s*[—\-–]?\s*(.+?)$/);
+    var eyebrow = m ? m[2].trim() : firstLine;
+    var headline = lines[1] || '';
+    var bodyLines = lines.slice(2);
+    var cta = null;
+    var last = bodyLines[bodyLines.length - 1] || '';
+    if (last.length < 100 && /[→👇👉👀🔥]/.test(last)) {
+      cta = last;
+      bodyLines = bodyLines.slice(0, -1);
+    }
+    var body = bodyLines.join('\n').trim();
+    var type = 'body';
+    var ebUp = eyebrow.toUpperCase();
+    if (ebUp.indexOf('ОБЛОЖК') >= 0 || i === 0) type = 'cover';
+    if (ebUp.indexOf('CTA') >= 0) type = 'cta';
+    if (/^\d+%|ЦИФР/i.test(headline) || /ЦИФР/.test(ebUp)) type = 'stat';
+    var slide = {
+      id: 'slide-' + Date.now() + '-' + i,
+      type: type, theme: 'default',
+      eyebrow: type === 'cover' ? '' : eyebrow,
+      headline: headline, body: body || null, cta: cta
+    };
+    if (type === 'stat') {
+      slide.stat = { value: headline, label: bodyLines[0] || '' };
+      slide.headline = '';
+      slide.body = bodyLines.slice(1).join('\n').trim() || null;
+    }
+    result.push(slide);
+  }
+  return result;
+}
+
+function ImportTextModal(props) {
+  var st = useState('');
+  var text = st[0]; var setText = st[1];
+  var preview = useMemo(function() { return parseSlideText(text); }, [text]);
+  return h('div', {
+    onClick: props.onClose,
+    style: {
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+      backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', padding: 24, zIndex: 100
+    }
+  },
+    h('div', {
+      onClick: function(ev) { ev.stopPropagation(); },
+      style: {
+        width: '90vw', maxWidth: 900, background: UI.surface, borderRadius: 10,
+        border: '1px solid ' + UI.border, display: 'flex', flexDirection: 'column',
+        maxHeight: '85vh'
+      }
+    },
+      h('div', { style: {
+        padding: '16px 20px', borderBottom: '1px solid ' + UI.border,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+      } },
+        h('div', { style: { fontSize: 13, fontWeight: 700 } }, 'Импорт из текста'),
+        h('button', {
+          onClick: props.onClose,
+          style: { background: 'transparent', cursor: 'pointer', fontSize: 16, color: UI.muted }
+        }, '×')
+      ),
+      h('div', { style: { padding: 16, display: 'flex', gap: 14, flex: 1, overflow: 'hidden' } },
+        h('div', { style: { flex: 1, display: 'flex', flexDirection: 'column' } },
+          h('div', { style: { fontSize: 10, color: UI.muted, marginBottom: 6 } },
+            'Вставь текст карусели в формате ■ СЛАЙД N — РОЛЬ'),
+          h('textarea', {
+            autoFocus: true, value: text,
+            onChange: function(ev) { setText(ev.target.value); },
+            placeholder: '■ СЛАЙД 0 — ОБЛОЖКА\nПочему ваши рилсы проигрывают котикам 🐱\n\n■ СЛАЙД 1 — ПАРАДОКС-ХУК\nВЫ КОНКУРИРУЕТЕ НЕ С ЭКСПЕРТАМИ\n\nтело...',
+            style: {
+              flex: 1, minHeight: 400, padding: 12, background: UI.bg,
+              border: '1px solid ' + UI.border, borderRadius: 6, fontSize: 12,
+              lineHeight: 1.5, fontFamily: 'monospace', color: UI.text
+            }
+          })
+        ),
+        h('div', { style: { width: 280, display: 'flex', flexDirection: 'column' } },
+          h('div', { style: { fontSize: 10, color: UI.muted, marginBottom: 6 } },
+            'Распознано слайдов: ',
+            h('span', { style: { color: UI.accent, fontWeight: 700 } }, preview.length)
+          ),
+          h('div', { style: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 } },
+            preview.map(function(s, i) {
+              return h('div', {
+                key: i,
+                style: {
+                  padding: 8, background: UI.surfaceAlt, borderRadius: 4,
+                  border: '1px solid ' + UI.border, fontSize: 11
+                }
+              },
+                h('div', { style: {
+                  color: UI.accent, fontSize: 9, fontWeight: 700,
+                  letterSpacing: '0.08em', marginBottom: 4
+                } }, pad2(i + 1) + ' · ' + s.type.toUpperCase() + (s.eyebrow ? ' · ' + s.eyebrow : '')),
+                h('div', { style: { fontWeight: 600, lineHeight: 1.3 } },
+                  s.headline || (s.stat && s.stat.value) || '(пусто)')
+              );
+            })
+          )
+        )
+      ),
+      h('div', { style: {
+        padding: '12px 16px', borderTop: '1px solid ' + UI.border,
+        display: 'flex', justifyContent: 'flex-end', gap: 8
+      } },
+        h('button', { onClick: props.onClose, style: btnStyle('outline') }, 'Отмена'),
+        h('button', {
+          onClick: function() { if (preview.length) { props.onImport(preview); props.onClose(); } },
+          disabled: preview.length === 0,
+          style: btnStyle('primary', preview.length === 0)
+        }, 'Импортировать (' + preview.length + ')')
+      )
+    )
+  );
+}
+
+// ====================================================
+//                    DEFAULTS
+// ====================================================
+
+function makeDefaults() {
+  return [
+    {
+      id: 'slide-d1', type: 'cover', theme: 'default',
+      eyebrow: 'ВЫПУСК · 01',
+      headline: 'Заголовок твоей *карусели* здесь',
+      body: 'Подзаголовок в одно-два предложения, чтобы дать контекст.',
+      cta: null
+    },
+    {
+      id: 'slide-d2', type: 'body', theme: 'default',
+      eyebrow: 'ПРОБЛЕМА',
+      headline: 'Что *не работает* у большинства',
+      body: 'Опиши боль или ситуацию, в которой узнаёт себя твоя аудитория. Конкретно, без воды.',
+      cta: 'а вот что работает на самом деле 👇'
+    },
+    {
+      id: 'slide-d3', type: 'body', theme: 'default',
+      eyebrow: 'РАЗВОРОТ',
+      headline: 'А вот *что работает* на самом деле',
+      body: 'Раскрой главную мысль или подход. Дай пример или короткую формулу.',
+      cta: 'и вот как это применить 👇'
+    },
+    {
+      id: 'slide-d4', type: 'stat', theme: 'default',
+      eyebrow: 'ЦИФРА',
+      stat: { value: '73%', label: 'людей делают эту ошибку — и теряют клиентов' },
+      body: null, cta: null
+    },
+    {
+      id: 'slide-d5', type: 'cta', theme: 'default',
+      eyebrow: 'ШАГ ДАЛЬШЕ',
+      headline: 'Забери шаблон, который *работает*',
+      body: 'Напиши слово в моём ТГ — пришлю PDF в течение часа.',
+      cta: 'Подписаться'
+    }
+  ];
+}
+
+var DEFAULT_OPTS = {
+  topic: 'Новая карусель', theme: 'dark', accent: '#D4FA27', fontId: 'mont',
+  grid: true, nickname: '@andre',
+  showNickname: true, showSwipe: true, showProgress: true, swipeFilled: false
+};
+
+// ====================================================
+//                       APP
+// ====================================================
+
+function App() {
+  var slidesSt = useState(function() {
+    try {
+      var saved = localStorage.getItem('cb_slides_v3');
+      if (saved) {
+        var p = JSON.parse(saved);
+        if (Array.isArray(p) && p.length > 0) return p;
+      }
+    } catch (e) {}
+    return makeDefaults();
+  });
+  var slides = slidesSt[0]; var setSlides = slidesSt[1];
+
+  var optsSt = useState(function() {
+    try {
+      var saved = localStorage.getItem('cb_opts_v3');
+      if (saved) return Object.assign({}, DEFAULT_OPTS, JSON.parse(saved));
+    } catch (e) {}
+    return DEFAULT_OPTS;
+  });
+  var opts = optsSt[0]; var setOpts = optsSt[1];
+
+  var activeSt = useState(0);
+  var active = activeSt[0]; var setActive = activeSt[1];
+
+  var expSt = useState(false);
+  var isExporting = expSt[0]; var setIsExporting = expSt[1];
+
+  var progSt = useState(0);
+  var exportProgress = progSt[0]; var setExportProgress = progSt[1];
+
+  var modalSt = useState(false);
+  var showImportText = modalSt[0]; var setShowImportText = modalSt[1];
+
+  var scaleSt = useState(0.42);
+  var previewScale = scaleSt[0]; var setPreviewScale = scaleSt[1];
+
+  useEffect(function() { localStorage.setItem('cb_slides_v3', JSON.stringify(slides)); }, [slides]);
+  useEffect(function() { localStorage.setItem('cb_opts_v3', JSON.stringify(opts)); }, [opts]);
+  useEffect(function() {
+    function calc() {
+      var hh = window.innerHeight - 220;
+      setPreviewScale(Math.min(0.62, hh / 1350));
+    }
+    calc();
+    window.addEventListener('resize', calc);
+    return function() { window.removeEventListener('resize', calc); };
+  }, []);
+
+  function updateSlide(i, next) {
+    setSlides(slides.map(function(s, idx) { return idx === i ? next : s; }));
+  }
+  function addSlide(type) {
+    var ns = {
+      id: 'slide-' + Date.now(), type: type || 'body', theme: 'default',
+      eyebrow: '', headline: type === 'stat' ? '' : 'Новый слайд',
+      body: type === 'cover' ? null : 'тело слайда', cta: null
+    };
+    if (type === 'stat') ns.stat = { value: '50%', label: 'короткая подпись' };
+    setSlides(slides.concat([ns]));
+    setActive(slides.length);
+  }
+  function removeSlide(i) {
+    if (slides.length <= 1) return;
+    setSlides(slides.filter(function(_, idx) { return idx !== i; }));
+    setActive(Math.max(0, Math.min(slides.length - 2, active)));
+  }
+  function duplicateSlide(i) {
+    var c = Object.assign({}, slides[i], { id: 'slide-' + Date.now() });
+    var next = slides.slice(0, i + 1).concat([c], slides.slice(i + 1));
+    setSlides(next);
+  }
+  function moveSlide(i, dir) {
+    var j = i + dir;
+    if (j < 0 || j >= slides.length) return;
+    var next = slides.slice();
+    var tmp = next[i]; next[i] = next[j]; next[j] = tmp;
+    setSlides(next);
+    setActive(j);
+  }
+  function importTextSlides(parsed) {
+    setSlides(parsed);
+    setActive(0);
+  }
+  function importJSON() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = function(ev) {
+      var f = ev.target.files[0];
+      if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function() {
+        try {
+          var data = JSON.parse(reader.result);
+          if (data.slides && Array.isArray(data.slides)) {
+            var next = data.slides.map(function(s, i) {
+              return {
+                id: 'slide-' + Date.now() + '-' + i,
+                type: ['cover','body','stat','cta'].indexOf(s.type) >= 0 ? s.type : 'body',
+                theme: s.theme || 'default',
+                eyebrow: s.eyebrow || '',
+                headline: s.headline || s.title || '',
+                body: s.body || null,
+                cta: s.cta || null,
+                stat: s.stat || null,
+                coverImage: s.coverImage || null,
+                position: s.position || 'auto',
+                backdropStyle: s.backdropStyle || 'none',
+                backdropOpacity: s.backdropOpacity,
+                gradientStrength: s.gradientStrength,
+                blur: s.blur || false
+              };
+            });
+            setSlides(next);
+            setActive(0);
+            if (data.meta) {
+              setOpts(Object.assign({}, opts,
+                data.meta.topic ? { topic: data.meta.topic } : {},
+                data.meta.accent ? { accent: data.meta.accent } : {},
+                data.meta.theme ? { theme: data.meta.theme } : {}
+              ));
+            }
+            alert('Импортировано слайдов: ' + next.length);
+          } else {
+            alert('JSON без ключа "slides".');
+          }
+        } catch (err) { alert('Ошибка JSON: ' + err.message); }
+      };
+      reader.readAsText(f);
+    };
+    input.click();
+  }
+  function exportJSON() {
+    var data = {
+      meta: { topic: opts.topic, accent: opts.accent, theme: opts.theme, fontId: opts.fontId },
+      slides: slides
+    };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    saveAs(blob, (opts.topic || 'carousel').replace(/\s+/g, '_') + '.json');
+  }
+  function exportAll() {
+    setIsExporting(true);
+    setExportProgress(0);
+    var zip = new JSZip();
+    function step(i) {
+      if (i >= slides.length) {
+        zip.generateAsync({ type: 'blob' }).then(function(content) {
+          saveAs(content, (opts.topic || 'carousel').replace(/\s+/g, '_') + '.zip');
+          setIsExporting(false); setExportProgress(0);
+        });
+        return;
+      }
+      var s = slides[i];
+      var c = document.createElement('canvas');
+      var p = s.coverImage ? loadImage(s.coverImage) : Promise.resolve();
+      p.then(function() {
+        try { drawSlide(c, s, opts, i, slides.length); } catch (e) { console.error(e); }
+        c.toBlob(function(blob) {
+          zip.file('slide-' + pad2(i + 1) + '.png', blob);
+          setExportProgress(Math.round(((i + 1) / slides.length) * 100));
+          step(i + 1);
+        }, 'image/png');
+      });
+    }
+    step(0);
+  }
+  function resetProject() {
+    if (confirm('Сбросить проект к шаблону?')) {
+      setSlides(makeDefaults());
+      setOpts(DEFAULT_OPTS);
+      setActive(0);
+    }
+  }
+
+  var activeSlide = slides[active] || slides[0];
+
+  return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh' } },
+    h(HeaderBar, {
+      opts: opts, setOpts: setOpts,
+      totalSlides: slides.length,
+      onImportText: function() { setShowImportText(true); },
+      onImportJSON: importJSON,
+      onExportJSON: exportJSON,
+      onExportAll: exportAll,
+      isExporting: isExporting,
+      exportProgress: exportProgress,
+      onReset: resetProject
+    }),
+    h('div', { style: { flex: 1, display: 'flex', overflow: 'hidden' } },
+      h(LeftPanel, { opts: opts, setOpts: setOpts }),
+      h('div', { style: {
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', background: '#050505', padding: 20, overflow: 'auto'
+      } },
+        h('div', { style: {
+          border: '1.5px solid ' + UI.accent, borderRadius: 10, padding: 0,
+          boxShadow: '0 30px 80px rgba(0,0,0,0.6)'
+        } },
+          h(SlideCanvas, {
+            slide: activeSlide, opts: opts, index: active, total: slides.length,
+            width: 1080 * previewScale, height: 1350 * previewScale
+          })
+        ),
+        h('div', { style: { display: 'flex', gap: 6, marginTop: 16, alignItems: 'center' } },
+          h('button', {
+            onClick: function() { setActive(Math.max(0, active - 1)); },
+            disabled: active === 0,
+            style: {
+              padding: '8px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+              background: UI.surface, color: UI.text,
+              cursor: active === 0 ? 'default' : 'pointer', opacity: active === 0 ? 0.4 : 1,
+              border: '1px solid ' + UI.border
+            }
+          }, '← пред'),
+          h('div', { style: {
+            padding: '8px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+            background: UI.surface, color: UI.muted
+          } }, 'Слайд ' + (active + 1) + ' из ' + slides.length),
+          h('button', {
+            onClick: function() { setActive(Math.min(slides.length - 1, active + 1)); },
+            disabled: active === slides.length - 1,
+            style: {
+              padding: '8px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+              background: UI.surface, color: UI.text,
+              cursor: active === slides.length - 1 ? 'default' : 'pointer',
+              opacity: active === slides.length - 1 ? 0.4 : 1,
+              border: '1px solid ' + UI.border
+            }
+          }, 'след →')
+        )
+      ),
+      h(SlideEditor, {
+        slide: activeSlide,
+        onChange: function(next) { updateSlide(active, next); }
+      }),
+      h(ThumbStrip, {
+        slides: slides, active: active, setActive: setActive, opts: opts,
+        onAdd: addSlide, onRemove: removeSlide,
+        onMove: moveSlide, onDup: duplicateSlide
+      })
+    ),
+    showImportText && h(ImportTextModal, {
+      onClose: function() { setShowImportText(false); },
+      onImport: importTextSlides
+    })
+  );
+}
+
+try {
+  ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+} catch (err) {
+  document.getElementById('error').style.display = 'block';
+  document.getElementById('error').textContent = 'FATAL: ' + err.message + '\n' + (err.stack || '');
+}
+</script>
+</body>
+</html>

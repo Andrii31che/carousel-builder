@@ -1,0 +1,14 @@
+{
+  "name": "carousel-builder",
+  "version": "1.0.0",
+  "description": "Instagram carousel builder for @andre — Quanta Tech",
+  "scripts": {
+    "start": "serve . --listen $PORT --no-clipboard --single"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
