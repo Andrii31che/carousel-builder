@@ -1,0 +1,17 @@
+{
+  "name": "Dr. Chernyshova",
+  "language": "ru",
+  "default_codeword": "АНАЛИЗЫ",
+  "default_lead_magnet": "PDF-чек-лист: 6 анализов для женщин 35+",
+  "opts": {
+    "theme": "cream",
+    "accent": "#E11D48",
+    "fontId": "editorial",
+    "nickname": "@doctor.chernyshova",
+    "grid": false,
+    "showNickname": true,
+    "showSwipe": true,
+    "showProgress": true,
+    "swipeFilled": false
+  }
+}

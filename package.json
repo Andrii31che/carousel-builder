@@ -4,12 +4,19 @@
   "description": "Instagram carousel builder for @andre — Quanta Tech",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "generate": "node scripts/generate.js",
+    "generate:tatiana": "node scripts/generate.js --brand=tatiana",
+    "generate:quanta": "node scripts/generate.js --brand=quanta",
+    "generate:tatiana:dry": "DRY_RUN=1 node scripts/generate.js --brand=tatiana"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "@anthropic-ai/sdk": "^0.95.2",
+    "@napi-rs/canvas": "^0.1.55",
     "cors": "^2.8.5",
-    "@napi-rs/canvas": "^0.1.55"
+    "express": "^4.19.2",
+    "form-data": "^4.0.5",
+    "minimist": "^1.2.8"
   },
   "engines": {
     "node": ">=18"
