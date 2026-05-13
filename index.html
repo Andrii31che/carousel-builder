@@ -91,6 +91,56 @@ var THEMES = {
     name: 'Светлая', bg: '#F4F1EC', text: '#0F0F10',
     body: 'rgba(15,15,16,0.85)', muted: 'rgba(15,15,16,0.45)',
     progressBg: 'rgba(15,15,16,0.15)', grid: 'rgba(15,15,16,0.05)'
+  },
+  noir: {
+    name: 'Нуар', bg: '#050505', text: '#FFFFFF',
+    body: 'rgba(255,255,255,0.95)', muted: 'rgba(255,255,255,0.45)',
+    progressBg: 'rgba(255,255,255,0.15)', grid: 'rgba(255,255,255,0.03)'
+  },
+  paper: {
+    name: 'Бумага', bg: '#F5EDD8', text: '#2C1810',
+    body: 'rgba(44,24,16,0.88)', muted: 'rgba(44,24,16,0.5)',
+    progressBg: 'rgba(44,24,16,0.18)', grid: 'rgba(44,24,16,0.06)'
+  },
+  cream: {
+    name: 'Крем', bg: '#FBF6E9', text: '#1A1612',
+    body: 'rgba(26,22,18,0.88)', muted: 'rgba(26,22,18,0.5)',
+    progressBg: 'rgba(26,22,18,0.18)', grid: 'rgba(26,22,18,0.05)'
+  },
+  ocean: {
+    name: 'Океан', bg: '#0A1929', text: '#E0F2FE',
+    body: 'rgba(224,242,254,0.92)', muted: 'rgba(224,242,254,0.55)',
+    progressBg: 'rgba(224,242,254,0.18)', grid: 'rgba(224,242,254,0.04)'
+  },
+  forest: {
+    name: 'Лес', bg: '#0F1F14', text: '#E8F5E9',
+    body: 'rgba(232,245,233,0.92)', muted: 'rgba(232,245,233,0.55)',
+    progressBg: 'rgba(232,245,233,0.18)', grid: 'rgba(232,245,233,0.04)'
+  },
+  blush: {
+    name: 'Пудра', bg: '#FAE5E0', text: '#3D1E1A',
+    body: 'rgba(61,30,26,0.85)', muted: 'rgba(61,30,26,0.5)',
+    progressBg: 'rgba(61,30,26,0.18)', grid: 'rgba(61,30,26,0.05)'
+  },
+  mint: {
+    name: 'Мята', bg: '#E6F5EC', text: '#0E2418',
+    body: 'rgba(14,36,24,0.85)', muted: 'rgba(14,36,24,0.5)',
+    progressBg: 'rgba(14,36,24,0.18)', grid: 'rgba(14,36,24,0.05)'
+  },
+  lavender: {
+    name: 'Лаванда', bg: '#EDE5F5', text: '#1F1438',
+    body: 'rgba(31,20,56,0.85)', muted: 'rgba(31,20,56,0.5)',
+    progressBg: 'rgba(31,20,56,0.18)', grid: 'rgba(31,20,56,0.05)'
+  },
+  charcoal: {
+    name: 'Уголь', bg: '#1A1D24', text: '#F5F5F5',
+    body: 'rgba(245,245,245,0.92)', muted: 'rgba(245,245,245,0.55)',
+    progressBg: 'rgba(245,245,245,0.18)', grid: 'rgba(245,245,245,0.04)'
+  },
+  vintage: {
+    name: 'Винтаж', bg: '#E8DDC9', text: '#3D2817',
+    body: 'rgba(61,40,23,0.88)', muted: 'rgba(61,40,23,0.5)',
+    progressBg: 'rgba(61,40,23,0.18)', grid: 'rgba(61,40,23,0.06)'
   }
 };
 
@@ -102,7 +152,34 @@ var FONT_SETS = {
   classic: { name: 'Classic', display: 'Oswald, sans-serif', body: 'Manrope, sans-serif', weights: { display: '700', body: '500' } }
 };
 
-var ACCENT_PRESETS = ['#D4FA27','#FF6B5B','#E11D48','#3B82F6','#10B981','#F59E0B','#A855F7','#FFFFFF'];
+var ACCENT_PRESETS = [
+  '#D4FA27', '#FBBF24', '#F97316', '#FF6B5B',
+  '#E11D48', '#EC4899', '#A855F7', '#6366F1',
+  '#3B82F6', '#06B6D4', '#10B981', '#84CC16',
+  '#00FF94', '#F5EDD8', '#FFFFFF', '#000000'
+];
+
+// ===== Готовые палитры (тема + акцент + шрифт одним кликом) =====
+var PALETTES = [
+  { name: 'Dmitry default',  theme: 'dark',     accent: '#D4FA27', fontId: 'mont' },
+  { name: 'Coral magazine',  theme: 'cream',    accent: '#FF6B5B', fontId: 'editorial' },
+  { name: 'Hot tabloid',     theme: 'light',    accent: '#E11D48', fontId: 'bold' },
+  { name: 'Ocean tech',      theme: 'ocean',    accent: '#06B6D4', fontId: 'modern' },
+  { name: 'Forest calm',     theme: 'forest',   accent: '#84CC16', fontId: 'editorial' },
+  { name: 'Lavender premium',theme: 'lavender', accent: '#A855F7', fontId: 'editorial' },
+  { name: 'Paper vintage',   theme: 'vintage',  accent: '#D97706', fontId: 'classic' },
+  { name: 'Neon cyber',      theme: 'noir',     accent: '#00FF94', fontId: 'modern' },
+  { name: 'Pink pop',        theme: 'light',    accent: '#EC4899', fontId: 'bold' },
+  { name: 'Yellow punch',    theme: 'noir',     accent: '#FBBF24', fontId: 'bold' },
+  { name: 'Blush soft',      theme: 'blush',    accent: '#E11D48', fontId: 'editorial' },
+  { name: 'Mint editorial',  theme: 'mint',     accent: '#10B981', fontId: 'editorial' },
+  { name: 'Cream classic',   theme: 'cream',    accent: '#D97706', fontId: 'classic' },
+  { name: 'Charcoal yellow', theme: 'charcoal', accent: '#D4FA27', fontId: 'mont' },
+  { name: 'Crimson pro',     theme: 'noir',     accent: '#DC2626', fontId: 'editorial' },
+  { name: 'Indigo modern',   theme: 'dark',     accent: '#6366F1', fontId: 'modern' },
+  { name: 'Lime fresh',      theme: 'paper',    accent: '#84CC16', fontId: 'modern' },
+  { name: 'Sunset',          theme: 'noir',     accent: '#F97316', fontId: 'bold' }
+];
 
 var SLIDE_TYPES = [
   { key: 'cover', label: 'Обложка' },
@@ -901,13 +978,56 @@ function LeftPanel(props) {
     padding: 18, overflowY: 'auto',
     flexShrink: 0, height: isMobile ? '100%' : 'auto'
   } },
+    h(Section, { label: 'Готовые палитры' },
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 } },
+        PALETTES.map(function(p, idx) {
+          var t = THEMES[p.theme] || THEMES.dark;
+          var isActive = opts.theme === p.theme && opts.accent === p.accent && opts.fontId === p.fontId;
+          return h('button', {
+            key: idx,
+            onClick: function() {
+              props.setOpts(Object.assign({}, opts, {
+                theme: p.theme, accent: p.accent, fontId: p.fontId
+              }));
+            },
+            style: {
+              position: 'relative', padding: '10px 8px', borderRadius: 6,
+              background: t.bg,
+              border: '1.5px solid ' + (isActive ? p.accent : UI.border),
+              cursor: 'pointer', textAlign: 'left', overflow: 'hidden',
+              boxShadow: isActive ? '0 0 0 2px ' + p.accent + '33' : 'none'
+            },
+            title: p.name + ' · ' + p.theme + ' + ' + p.accent
+          },
+            h('div', { style: {
+              width: 14, height: 14, borderRadius: 3, background: p.accent,
+              marginBottom: 4, border: '1px solid rgba(255,255,255,0.1)'
+            } }),
+            h('div', { style: {
+              color: t.text, fontSize: 10, fontWeight: 700, lineHeight: 1.2
+            } }, p.name)
+          );
+        })
+      )
+    ),
     h(Section, { label: 'Тема всей карусели' },
-      h('div', { style: { display: 'flex', gap: 6 } },
-        ['dark', 'light'].map(function(k) {
-          return h(Toggle, {
-            key: k, full: true, active: opts.theme === k,
-            onClick: function() { update('theme', k); }
-          }, THEMES[k].name);
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 } },
+        Object.keys(THEMES).map(function(k) {
+          var t = THEMES[k];
+          var isActive = opts.theme === k;
+          return h('button', {
+            key: k,
+            onClick: function() { update('theme', k); },
+            style: {
+              padding: '8px 4px', borderRadius: 6,
+              background: t.bg,
+              color: t.text,
+              border: '1.5px solid ' + (isActive ? opts.accent : UI.border),
+              cursor: 'pointer', fontSize: 10, fontWeight: 600,
+              minHeight: 40,
+              boxShadow: isActive ? '0 0 0 2px ' + opts.accent + '40' : 'none'
+            }
+          }, t.name);
         })
       ),
       h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.4 } },
@@ -1034,15 +1154,35 @@ function SlideEditor(props) {
       )
     ),
     h(Section, { label: 'Тема этого слайда' },
-      h('div', { style: { display: 'flex', gap: 4 } },
-        THEME_CHOICES.map(function(t) {
-          return h(Toggle, {
-            key: t.key, full: true, dim: true,
-            active: (slide.theme || 'default') === t.key,
-            onClick: function() { update('theme', t.key); }
-          }, t.label);
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 } },
+        h('button', {
+          key: 'default',
+          onClick: function() { update('theme', 'default'); },
+          style: {
+            padding: '8px 4px', borderRadius: 6,
+            background: (slide.theme || 'default') === 'default' ? UI.text : UI.surfaceAlt,
+            color: (slide.theme || 'default') === 'default' ? UI.bg : UI.muted,
+            border: '1px solid ' + ((slide.theme || 'default') === 'default' ? UI.text : UI.border),
+            cursor: 'pointer', fontSize: 10, fontWeight: 600, minHeight: 38
+          }
+        }, 'Как у всей'),
+        Object.keys(THEMES).map(function(k) {
+          var t = THEMES[k];
+          var isAct = slide.theme === k;
+          return h('button', {
+            key: k,
+            onClick: function() { update('theme', k); },
+            style: {
+              padding: '8px 4px', borderRadius: 6,
+              background: t.bg, color: t.text,
+              border: '1.5px solid ' + (isAct ? '#D4FA27' : UI.border),
+              cursor: 'pointer', fontSize: 9, fontWeight: 600, minHeight: 38
+            }
+          }, t.name);
         })
-      )
+      ),
+      h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.3 } },
+        'Можно сделать обложку светлой, а остальное тёмное — например.')
     ),
     h(Section, { label: 'Содержание' },
       h(Field, { label: 'Над-заголовок (мелкий капс, опц.)' },
