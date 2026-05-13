@@ -13,9 +13,11 @@
 <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0a0a0a;color:#f5f5f5;font-family:'Manrope',sans-serif;font-size:13px;-webkit-font-smoothing:antialiased}
+  html,body{overscroll-behavior:none}
+  body{background:#0a0a0a;color:#f5f5f5;font-family:'Manrope',sans-serif;font-size:13px;-webkit-font-smoothing:antialiased;touch-action:manipulation}
   textarea,input,button{font-family:inherit;color:inherit;outline:none;border:none;background:transparent}
   textarea{resize:none}
+  button{touch-action:manipulation}
   ::-webkit-scrollbar{width:8px;height:8px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:#262626;border-radius:4px}
@@ -24,8 +26,12 @@
   input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
   input[type="color"]::-webkit-color-swatch{border:none;border-radius:6px}
   .range{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:#262626;border-radius:2px;outline:none}
-  .range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#D4FA27;cursor:pointer}
-  .range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#D4FA27;cursor:pointer;border:none}
+  .range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#D4FA27;cursor:pointer}
+  .range::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#D4FA27;cursor:pointer;border:none}
+  @media (max-width: 767px) {
+    body { font-size: 14px; }
+    input, textarea, select, button { font-size: 16px !important; }
+  }
 </style>
 </head>
 <body>
@@ -736,11 +742,40 @@ function Range(props) {
 
 // ---------- HEADER ----------
 function HeaderBar(props) {
+  var isMobile = props.viewport === 'mobile';
+  var isTablet = props.viewport === 'tablet';
+
+  if (isMobile) {
+    return h('div', { style: {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '8px 12px', borderBottom: '1px solid ' + UI.border, background: UI.surface,
+      flexShrink: 0
+    } },
+      h('div', { style: {
+        padding: '4px 10px', borderRadius: 999, border: '1px solid ' + UI.accent,
+        color: UI.accent, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+        whiteSpace: 'nowrap'
+      } }, '● ANDRE'),
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+        h('button', {
+          onClick: props.onImportText, style: btnStyle('outline'),
+          title: 'Импорт текста'
+        }, '↓ ТЕКСТ'),
+        h('button', {
+          onClick: props.onExportAll, disabled: props.isExporting,
+          style: btnStyle('primary', props.isExporting),
+          title: 'Скачать всё'
+        }, props.isExporting ? (props.exportProgress + '%') : '↓ ZIP')
+      )
+    );
+  }
+
   return h('div', { style: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '10px 16px', borderBottom: '1px solid ' + UI.border, background: UI.surface
+    padding: '10px 16px', borderBottom: '1px solid ' + UI.border, background: UI.surface,
+    flexShrink: 0, flexWrap: 'wrap', gap: 8
   } },
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: 14 } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' } },
       h('div', { style: {
         padding: '6px 12px', borderRadius: 999, border: '1px solid ' + UI.accent,
         color: UI.accent, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em'
@@ -751,16 +786,17 @@ function HeaderBar(props) {
         placeholder: 'Название карусели',
         style: {
           background: 'transparent', border: 'none', borderBottom: '1px solid ' + UI.border,
-          padding: '4px 6px', fontSize: 13, color: UI.text, width: 280
+          padding: '4px 6px', fontSize: 13, color: UI.text,
+          width: isTablet ? 180 : 280
         }
       })
     ),
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-      h('span', { style: { fontSize: 10, color: UI.muted, marginRight: 4 } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+      !isTablet && h('span', { style: { fontSize: 10, color: UI.muted, marginRight: 4 } },
         props.totalSlides + ' · 1080×1350'),
-      h('button', { onClick: props.onImportText, style: btnStyle('outline') }, '↓ ВСТАВИТЬ ТЕКСТ'),
-      h('button', { onClick: props.onImportJSON, style: btnStyle('outline') }, '↓ JSON'),
-      h('button', { onClick: props.onExportJSON, style: btnStyle('outline') }, '↑ JSON'),
+      h('button', { onClick: props.onImportText, style: btnStyle('outline') }, '↓ ТЕКСТ'),
+      !isTablet && h('button', { onClick: props.onImportJSON, style: btnStyle('outline') }, '↓ JSON'),
+      !isTablet && h('button', { onClick: props.onExportJSON, style: btnStyle('outline') }, '↑ JSON'),
       h('button', {
         onClick: props.onExportAll, disabled: props.isExporting,
         style: btnStyle('primary', props.isExporting)
@@ -770,15 +806,100 @@ function HeaderBar(props) {
   );
 }
 
+// ---------- MOBILE TAB BAR ----------
+function MobileTabBar(props) {
+  var tabs = [
+    { k: 'preview', l: 'Слайд', icon: '👁' },
+    { k: 'style',   l: 'Стиль', icon: '🎨' },
+    { k: 'edit',    l: 'Текст', icon: '✏️' },
+    { k: 'slides',  l: 'Список', icon: '📑' },
+    { k: 'menu',    l: 'Меню',  icon: '⋯' }
+  ];
+  return h('div', { style: {
+    display: 'flex', borderTop: '1px solid ' + UI.border, background: UI.surface,
+    flexShrink: 0, padding: '4px 0', paddingBottom: 'calc(4px + env(safe-area-inset-bottom))'
+  } },
+    tabs.map(function(t) {
+      var active = props.tab === t.k;
+      return h('button', {
+        key: t.k,
+        onClick: function() { props.setTab(t.k); },
+        style: {
+          flex: 1, padding: '8px 4px', cursor: 'pointer', background: 'transparent',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          color: active ? UI.accent : UI.muted,
+          fontSize: 10, fontWeight: 600
+        }
+      },
+        h('span', { style: { fontSize: 18, lineHeight: 1 } }, t.icon),
+        h('span', null, t.l)
+      );
+    })
+  );
+}
+
+// ---------- MOBILE MENU OVERLAY ----------
+function MobileMenu(props) {
+  return h('div', { style: {
+    position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.8)',
+    display: 'flex', alignItems: 'flex-end', justifyContent: 'center'
+  }, onClick: props.onClose },
+    h('div', {
+      onClick: function(ev) { ev.stopPropagation(); },
+      style: {
+        width: '100%', maxWidth: 480, background: UI.surface, borderTopLeftRadius: 16,
+        borderTopRightRadius: 16, padding: 16, display: 'flex', flexDirection: 'column',
+        gap: 8, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))'
+      }
+    },
+      h('div', { style: { fontSize: 11, color: UI.muted, marginBottom: 4, textAlign: 'center' } },
+        'Действия с проектом'),
+      h('input', {
+        type: 'text', value: props.opts.topic || '',
+        placeholder: 'Название карусели',
+        onChange: function(ev) { props.setOpts(Object.assign({}, props.opts, { topic: ev.target.value })); },
+        style: {
+          width: '100%', padding: '10px 12px', background: UI.surfaceAlt,
+          border: '1px solid ' + UI.border, borderRadius: 8, color: UI.text, marginBottom: 8
+        }
+      }),
+      h('button', { onClick: function() { props.onImportText(); props.onClose(); },
+        style: Object.assign({}, btnStyle('outline'), { padding: '12px 14px', fontSize: 11 }) },
+        '↓ ВСТАВИТЬ ТЕКСТ'),
+      h('button', { onClick: function() { props.onImportJSON(); props.onClose(); },
+        style: Object.assign({}, btnStyle('outline'), { padding: '12px 14px', fontSize: 11 }) },
+        '↓ ИМПОРТ JSON'),
+      h('button', { onClick: function() { props.onExportJSON(); props.onClose(); },
+        style: Object.assign({}, btnStyle('outline'), { padding: '12px 14px', fontSize: 11 }) },
+        '↑ ЭКСПОРТ JSON'),
+      h('button', { onClick: function() { props.onExportAll(); props.onClose(); },
+        disabled: props.isExporting,
+        style: Object.assign({}, btnStyle('primary', props.isExporting), { padding: '14px 14px', fontSize: 12 }) },
+        props.isExporting ? ('Экспорт ' + props.exportProgress + '%') : 'СКАЧАТЬ ВСЕ В ZIP'),
+      h('button', { onClick: function() { props.onReset(); props.onClose(); },
+        style: Object.assign({}, btnStyle('ghost'), { padding: '12px', fontSize: 11 }) },
+        '⟲ Сбросить проект'),
+      h('button', { onClick: props.onClose,
+        style: { padding: '12px', marginTop: 8, background: UI.surfaceAlt, color: UI.muted,
+          borderRadius: 8, cursor: 'pointer', fontSize: 11 } },
+        'Отмена')
+    )
+  );
+}
+
 // ---------- LEFT PANEL ----------
 function LeftPanel(props) {
   var opts = props.opts;
+  var isMobile = !!props.mobile;
   function update(k, v) {
     var next = Object.assign({}, opts); next[k] = v; props.setOpts(next);
   }
   return h('div', { style: {
-    width: 280, background: UI.surface, borderRight: '1px solid ' + UI.border,
-    padding: 18, overflowY: 'auto', flexShrink: 0
+    width: isMobile ? '100%' : 280,
+    background: UI.surface,
+    borderRight: isMobile ? 'none' : '1px solid ' + UI.border,
+    padding: 18, overflowY: 'auto',
+    flexShrink: 0, height: isMobile ? '100%' : 'auto'
   } },
     h(Section, { label: 'Тема всей карусели' },
       h('div', { style: { display: 'flex', gap: 6 } },
@@ -874,7 +995,8 @@ function LeftPanel(props) {
 // ---------- SLIDE EDITOR ----------
 function SlideEditor(props) {
   var slide = props.slide;
-  if (!slide) return h('div', { style: { width: 340, padding: 18, color: UI.muted } }, 'Нет слайда');
+  var isMobile = !!props.mobile;
+  if (!slide) return h('div', { style: { width: isMobile ? '100%' : 340, padding: 18, color: UI.muted } }, 'Нет слайда');
   function update(k, v) {
     var next = Object.assign({}, slide); next[k] = v; props.onChange(next);
   }
@@ -892,8 +1014,11 @@ function SlideEditor(props) {
   }
 
   return h('div', { style: {
-    width: 340, background: UI.surface, borderLeft: '1px solid ' + UI.border,
-    padding: 18, overflowY: 'auto', flexShrink: 0
+    width: isMobile ? '100%' : 340,
+    background: UI.surface,
+    borderLeft: isMobile ? 'none' : '1px solid ' + UI.border,
+    padding: 18, overflowY: 'auto',
+    flexShrink: 0, height: isMobile ? '100%' : 'auto'
   } },
     h('div', { style: { fontSize: 11, color: UI.muted, marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' } }, 'Редактор · слайд'),
     h('div', { style: { fontSize: 10, color: UI.dim, marginBottom: 14 } },
@@ -1051,9 +1176,13 @@ function SlideEditor(props) {
 
 // ---------- THUMB STRIP ----------
 function ThumbStrip(props) {
+  var isMobile = !!props.mobile;
   return h('div', { style: {
-    width: 170, background: UI.surface, borderLeft: '1px solid ' + UI.border,
-    padding: '14px 10px', overflowY: 'auto', flexShrink: 0
+    width: isMobile ? '100%' : 170,
+    background: UI.surface,
+    borderLeft: isMobile ? 'none' : '1px solid ' + UI.border,
+    padding: '14px 10px', overflowY: 'auto',
+    flexShrink: 0, height: isMobile ? '100%' : 'auto'
   } },
     h('div', { style: {
       fontSize: 9, color: UI.muted, fontWeight: 700, letterSpacing: '0.16em',
@@ -1330,16 +1459,47 @@ function App() {
   var scaleSt = useState(0.42);
   var previewScale = scaleSt[0]; var setPreviewScale = scaleSt[1];
 
+  var vpSt = useState('desktop');
+  var viewport = vpSt[0]; var setViewport = vpSt[1];
+
+  var tabSt = useState('preview');
+  var mobileTab = tabSt[0]; var setMobileTab = tabSt[1];
+
+  var menuSt = useState(false);
+  var showMobileMenu = menuSt[0]; var setShowMobileMenu = menuSt[1];
+
   useEffect(function() { localStorage.setItem('cb_slides_v3', JSON.stringify(slides)); }, [slides]);
   useEffect(function() { localStorage.setItem('cb_opts_v3', JSON.stringify(opts)); }, [opts]);
   useEffect(function() {
     function calc() {
-      var hh = window.innerHeight - 220;
-      setPreviewScale(Math.min(0.62, hh / 1350));
+      var w = window.innerWidth;
+      var hh = window.innerHeight;
+      var nextViewport = w >= 1100 ? 'desktop' : (w >= 768 ? 'tablet' : 'mobile');
+      setViewport(nextViewport);
+
+      var availableH, availableW, scale;
+      if (nextViewport === 'mobile') {
+        availableH = hh - 56 - 64 - 70; // header + nav buttons + tab bar
+        availableW = w - 24;
+      } else if (nextViewport === 'tablet') {
+        availableH = hh - 60 - 70;
+        availableW = w - 360 - 40; // editor 340 + padding
+      } else {
+        availableH = hh - 60 - 80;
+        availableW = w - 280 - 340 - 170 - 60;
+      }
+      var byH = availableH / 1350;
+      var byW = availableW / 1080;
+      scale = Math.max(0.15, Math.min(0.65, Math.min(byH, byW)));
+      setPreviewScale(scale);
     }
     calc();
     window.addEventListener('resize', calc);
-    return function() { window.removeEventListener('resize', calc); };
+    window.addEventListener('orientationchange', calc);
+    return function() {
+      window.removeEventListener('resize', calc);
+      window.removeEventListener('orientationchange', calc);
+    };
   }, []);
 
   function updateSlide(i, next) {
@@ -1470,64 +1630,177 @@ function App() {
 
   var activeSlide = slides[active] || slides[0];
 
-  return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh' } },
-    h(HeaderBar, {
-      opts: opts, setOpts: setOpts,
-      totalSlides: slides.length,
-      onImportText: function() { setShowImportText(true); },
-      onImportJSON: importJSON,
-      onExportJSON: exportJSON,
-      onExportAll: exportAll,
-      isExporting: isExporting,
-      exportProgress: exportProgress,
-      onReset: resetProject
-    }),
-    h('div', { style: { flex: 1, display: 'flex', overflow: 'hidden' } },
-      h(LeftPanel, { opts: opts, setOpts: setOpts }),
+  function PreviewBlock(extraStyle) {
+    return h('div', { style: Object.assign({
+      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', background: '#050505', padding: 12, overflow: 'auto', minHeight: 0
+    }, extraStyle || {}) },
       h('div', { style: {
-        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', background: '#050505', padding: 20, overflow: 'auto'
+        border: '1.5px solid ' + UI.accent, borderRadius: 10, padding: 0,
+        boxShadow: '0 30px 80px rgba(0,0,0,0.6)'
       } },
+        h(SlideCanvas, {
+          slide: activeSlide, opts: opts, index: active, total: slides.length,
+          width: 1080 * previewScale, height: 1350 * previewScale
+        })
+      ),
+      h('div', { style: { display: 'flex', gap: 6, marginTop: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' } },
+        h('button', {
+          onClick: function() { setActive(Math.max(0, active - 1)); },
+          disabled: active === 0,
+          style: {
+            padding: '10px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+            background: UI.surface, color: UI.text,
+            cursor: active === 0 ? 'default' : 'pointer', opacity: active === 0 ? 0.4 : 1,
+            border: '1px solid ' + UI.border, minWidth: 70
+          }
+        }, '← пред'),
         h('div', { style: {
-          border: '1.5px solid ' + UI.accent, borderRadius: 10, padding: 0,
-          boxShadow: '0 30px 80px rgba(0,0,0,0.6)'
-        } },
-          h(SlideCanvas, {
-            slide: activeSlide, opts: opts, index: active, total: slides.length,
-            width: 1080 * previewScale, height: 1350 * previewScale
-          })
-        ),
-        h('div', { style: { display: 'flex', gap: 6, marginTop: 16, alignItems: 'center' } },
-          h('button', {
-            onClick: function() { setActive(Math.max(0, active - 1)); },
-            disabled: active === 0,
-            style: {
-              padding: '8px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-              background: UI.surface, color: UI.text,
-              cursor: active === 0 ? 'default' : 'pointer', opacity: active === 0 ? 0.4 : 1,
-              border: '1px solid ' + UI.border
-            }
-          }, '← пред'),
-          h('div', { style: {
-            padding: '8px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-            background: UI.surface, color: UI.muted
-          } }, 'Слайд ' + (active + 1) + ' из ' + slides.length),
-          h('button', {
-            onClick: function() { setActive(Math.min(slides.length - 1, active + 1)); },
-            disabled: active === slides.length - 1,
-            style: {
-              padding: '8px 16px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-              background: UI.surface, color: UI.text,
-              cursor: active === slides.length - 1 ? 'default' : 'pointer',
-              opacity: active === slides.length - 1 ? 0.4 : 1,
-              border: '1px solid ' + UI.border
-            }
-          }, 'след →')
+          padding: '10px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+          background: UI.surface, color: UI.muted
+        } }, 'Слайд ' + (active + 1) + ' из ' + slides.length),
+        h('button', {
+          onClick: function() { setActive(Math.min(slides.length - 1, active + 1)); },
+          disabled: active === slides.length - 1,
+          style: {
+            padding: '10px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+            background: UI.surface, color: UI.text,
+            cursor: active === slides.length - 1 ? 'default' : 'pointer',
+            opacity: active === slides.length - 1 ? 0.4 : 1,
+            border: '1px solid ' + UI.border, minWidth: 70
+          }
+        }, 'след →')
+      )
+    );
+  }
+
+  function MobilePanel(content) {
+    return h('div', { style: {
+      flex: 1, overflow: 'auto', minHeight: 0, background: UI.bg
+    } }, content);
+  }
+
+  var headerEl = h(HeaderBar, {
+    opts: opts, setOpts: setOpts,
+    totalSlides: slides.length,
+    viewport: viewport,
+    onImportText: function() { setShowImportText(true); },
+    onImportJSON: importJSON,
+    onExportJSON: exportJSON,
+    onExportAll: exportAll,
+    isExporting: isExporting,
+    exportProgress: exportProgress,
+    onReset: resetProject
+  });
+
+  // ===== MOBILE LAYOUT =====
+  if (viewport === 'mobile') {
+    var mobileContent;
+    if (mobileTab === 'preview') mobileContent = PreviewBlock();
+    else if (mobileTab === 'style') mobileContent = MobilePanel(h(LeftPanel, { opts: opts, setOpts: setOpts, mobile: true }));
+    else if (mobileTab === 'edit') mobileContent = MobilePanel(h(SlideEditor, {
+      slide: activeSlide, onChange: function(next) { updateSlide(active, next); }, mobile: true
+    }));
+    else if (mobileTab === 'slides') mobileContent = MobilePanel(h(ThumbStrip, {
+      slides: slides, active: active,
+      setActive: function(i) { setActive(i); setMobileTab('preview'); },
+      opts: opts, onAdd: addSlide, onRemove: removeSlide,
+      onMove: moveSlide, onDup: duplicateSlide, mobile: true
+    }));
+    else mobileContent = PreviewBlock();
+
+    return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh', maxHeight: '100vh', overflow: 'hidden' } },
+      headerEl,
+      mobileContent,
+      h(MobileTabBar, {
+        tab: mobileTab,
+        setTab: function(k) {
+          if (k === 'menu') { setShowMobileMenu(true); return; }
+          setMobileTab(k);
+        }
+      }),
+      showMobileMenu && h(MobileMenu, {
+        opts: opts, setOpts: setOpts,
+        onImportText: function() { setShowImportText(true); },
+        onImportJSON: importJSON, onExportJSON: exportJSON,
+        onExportAll: exportAll, onReset: resetProject,
+        isExporting: isExporting, exportProgress: exportProgress,
+        onClose: function() { setShowMobileMenu(false); }
+      }),
+      showImportText && h(ImportTextModal, {
+        onClose: function() { setShowImportText(false); },
+        onImport: importTextSlides
+      })
+    );
+  }
+
+  // ===== TABLET LAYOUT =====
+  if (viewport === 'tablet') {
+    return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' } },
+      headerEl,
+      h('div', { style: { flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 } },
+        PreviewBlock(),
+        h(SlideEditor, {
+          slide: activeSlide, onChange: function(next) { updateSlide(active, next); }
+        })
+      ),
+      h('div', { style: {
+        display: 'flex', borderTop: '1px solid ' + UI.border, background: UI.surface,
+        overflowX: 'auto', padding: '8px 12px', gap: 8, flexShrink: 0
+      } },
+        h('button', { onClick: function() { setShowMobileMenu(true); },
+          style: { padding: '8px 12px', background: UI.surfaceAlt, color: UI.text,
+            border: '1px solid ' + UI.border, borderRadius: 6, fontSize: 11, cursor: 'pointer',
+            whiteSpace: 'nowrap' } }, '🎨 Стиль'),
+        h('div', { style: { display: 'flex', gap: 6 } },
+          slides.map(function(s, i) {
+            var isAct = i === active;
+            return h('button', {
+              key: s.id || i,
+              onClick: function() { setActive(i); },
+              style: {
+                padding: '6px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
+                background: isAct ? UI.accent : UI.surfaceAlt,
+                color: isAct ? UI.accentText : UI.text,
+                border: '1px solid ' + (isAct ? UI.accent : UI.border),
+                cursor: 'pointer', whiteSpace: 'nowrap'
+              }
+            }, pad2(i + 1));
+          }),
+          slides.length < 12 && h('button', {
+            onClick: function() { addSlide('body'); },
+            style: { padding: '6px 10px', borderRadius: 6, fontSize: 10,
+              background: 'transparent', color: UI.muted,
+              border: '1px dashed ' + UI.border, cursor: 'pointer' }
+          }, '+')
         )
       ),
+      showMobileMenu && h('div', {
+        style: {
+          position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.8)',
+          display: 'flex', alignItems: 'stretch', justifyContent: 'flex-start'
+        }, onClick: function() { setShowMobileMenu(false); }
+      },
+        h('div', {
+          onClick: function(ev) { ev.stopPropagation(); },
+          style: { width: 320, height: '100%', background: UI.surface, overflowY: 'auto' }
+        }, h(LeftPanel, { opts: opts, setOpts: setOpts }))
+      ),
+      showImportText && h(ImportTextModal, {
+        onClose: function() { setShowImportText(false); },
+        onImport: importTextSlides
+      })
+    );
+  }
+
+  // ===== DESKTOP LAYOUT =====
+  return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' } },
+    headerEl,
+    h('div', { style: { flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 } },
+      h(LeftPanel, { opts: opts, setOpts: setOpts }),
+      PreviewBlock(),
       h(SlideEditor, {
-        slide: activeSlide,
-        onChange: function(next) { updateSlide(active, next); }
+        slide: activeSlide, onChange: function(next) { updateSlide(active, next); }
       }),
       h(ThumbStrip, {
         slides: slides, active: active, setActive: setActive, opts: opts,
