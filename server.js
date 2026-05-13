@@ -87,6 +87,55 @@ app.post('/api/render', async (req, res) => {
   }
 });
 
+// ===== Trigger orchestrator (Claude → Builder → Telegram) =====
+// POST /api/generate?brand=tatiana
+//
+// Auth: header X-Auth-Token must match env GENERATE_AUTH_TOKEN
+//       (set in Railway Variables; if not set — endpoint is disabled)
+//
+// Body: { brand: "tatiana" | "quanta", dry?: true }  (also can pass via query)
+//
+// Triggers the same flow as scripts/generate.js but as HTTP request.
+app.post('/api/generate', async (req, res) => {
+  const requiredToken = process.env.GENERATE_AUTH_TOKEN;
+  if (!requiredToken) {
+    return res.status(503).json({ ok: false, error: 'GENERATE_AUTH_TOKEN not configured in env' });
+  }
+  const got = req.header('X-Auth-Token') || req.query.token;
+  if (got !== requiredToken) {
+    return res.status(401).json({ ok: false, error: 'Invalid X-Auth-Token' });
+  }
+
+  const brand = (req.body && req.body.brand) || req.query.brand;
+  if (!brand) return res.status(400).json({ ok: false, error: '"brand" is required' });
+  const dry = (req.body && req.body.dry) || req.query.dry === '1';
+
+  try {
+    const { spawn } = require('child_process');
+    const args = ['scripts/generate.js', '--brand=' + brand];
+    const env = Object.assign({}, process.env);
+    if (dry) env.DRY_RUN = '1';
+
+    let stdout = '', stderr = '';
+    const child = spawn(process.execPath, args, { cwd: __dirname, env });
+    child.stdout.on('data', d => { stdout += d.toString(); process.stdout.write(d); });
+    child.stderr.on('data', d => { stderr += d.toString(); process.stderr.write(d); });
+    const exitCode = await new Promise((r) => child.on('close', r));
+
+    return res.json({
+      ok: exitCode === 0,
+      exitCode,
+      brand,
+      dry,
+      stdout: stdout.slice(-4000),
+      stderr: stderr.slice(-2000)
+    });
+  } catch (err) {
+    console.error('[/api/generate] error:', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ===== Example POST endpoint =====
 // GET /api/example — returns sample JSON body for quick testing
 app.get('/api/example', (req, res) => {
