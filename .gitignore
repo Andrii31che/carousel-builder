@@ -1,4 +1,6 @@
 node_modules/
 test-output/
+output/
+.env
 *.log
 .DS_Store
