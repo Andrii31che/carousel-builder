@@ -1,12 +1,15 @@
 {
   "name": "carousel-builder",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Instagram carousel builder for @andre — Quanta Tech",
+  "main": "server.js",
   "scripts": {
-    "start": "serve . --listen $PORT --no-clipboard --single"
+    "start": "node server.js"
   },
   "dependencies": {
-    "serve": "^14.2.4"
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "@napi-rs/canvas": "^0.1.55"
   },
   "engines": {
     "node": ">=18"
