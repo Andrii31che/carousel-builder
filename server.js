@@ -26,6 +26,23 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, version: '2.0.0', time: new Date().toISOString() });
 });
 
+// ===== Debug: list env var names (no values) — temporary =====
+app.get('/api/debug-env', (req, res) => {
+  const all = Object.keys(process.env).sort();
+  const interesting = all.filter(k =>
+    /ANTHROPIC|TELEGRAM|GENERATE|RAILWAY|NODE/i.test(k)
+  );
+  res.json({
+    has_anthropic: !!process.env.ANTHROPIC_API_KEY,
+    has_telegram_token: !!process.env.TELEGRAM_BOT_TOKEN,
+    has_telegram_chat: !!process.env.TELEGRAM_CHAT_ID,
+    has_generate_token: !!process.env.GENERATE_AUTH_TOKEN,
+    generate_token_length: (process.env.GENERATE_AUTH_TOKEN || '').length,
+    interesting_keys: interesting,
+    total_env_keys: all.length
+  });
+});
+
 // ===== Default options (mirror UI DEFAULT_OPTS) =====
 const DEFAULT_OPTS = {
   theme: 'dark',
