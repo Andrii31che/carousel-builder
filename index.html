@@ -349,14 +349,35 @@ function wrapAccentText(ctx, text, maxWidth) {
   return allLines;
 }
 
-function drawWrappedAccent(ctx, lines, x, y, lineH, normalColor, accentColor) {
+function drawWrappedAccent(ctx, lines, x, y, lineH, normalColor, accentColor, highlight, fontSize) {
   var cy = y;
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
+    if (highlight === 'marker') {
+      var cx2 = x;
+      var padX = 6;
+      var fs = fontSize || lineH * 0.85;
+      var padTop = fs * 0.42, padBot = fs * 0.08;
+      for (var k = 0; k < line.length; k++) {
+        var s = line[k];
+        if (s.accent && s.text.trim().length > 0) {
+          ctx.save();
+          ctx.fillStyle = accentColor;
+          ctx.globalAlpha = 0.45;
+          ctx.fillRect(cx2 - padX, cy + padTop, s.w + padX * 2, fs - padTop + padBot);
+          ctx.restore();
+        }
+        cx2 += s.w;
+      }
+    }
     var cx = x;
     for (var j = 0; j < line.length; j++) {
       var seg = line[j];
-      ctx.fillStyle = seg.accent ? accentColor : normalColor;
+      if (seg.accent) {
+        ctx.fillStyle = highlight === 'marker' ? '#0F0F10' : accentColor;
+      } else {
+        ctx.fillStyle = normalColor;
+      }
       ctx.fillText(seg.text, cx, cy);
       cx += seg.w;
     }
@@ -424,6 +445,21 @@ function drawSlide(canvas, slide, opts, index, total) {
     for (var gy = 0; gy <= H; gy += 80) {
       ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
     }
+  }
+
+  // 2.5. Background emoji decoration
+  if (slide.bgEmoji && opts.showBgEmoji !== false) {
+    var bgSz = slide.bgEmojiSize || 480;
+    var bgOp = slide.bgEmojiOpacity != null ? slide.bgEmojiOpacity : 0.18;
+    ctx.save();
+    ctx.globalAlpha = bgOp;
+    ctx.font = bgSz + 'px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    try { ctx.fillText(slide.bgEmoji, W - 40, 220); } catch (e) {}
+    ctx.restore();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
   }
 
   var textColor = hasImage ? '#FFFFFF' : theme.text;
@@ -501,9 +537,12 @@ function drawSlide(canvas, slide, opts, index, total) {
     }
   }
 
+  var highlight = opts.highlightStyle || 'color';
+
   if (slide.headline) {
     var hSize = isCover ? SZ.headlineCover : SZ.headline;
-    var hFont = fonts.weights.display + ' ' + hSize + 'px ' + fonts.display;
+    var hWeight = isCover ? '900' : fonts.weights.display;
+    var hFont = hWeight + ' ' + hSize + 'px ' + fonts.display;
     ctx.font = hFont;
     var hLines = wrapAccentText(ctx, slide.headline, CW);
     var lh2 = hSize * 1.05;
@@ -512,7 +551,7 @@ function drawSlide(canvas, slide, opts, index, total) {
       height: hLines.length * lh2,
       draw: function(y) {
         ctx.font = hFont;
-        drawWrappedAccent(ctx, hLines, PAD, y, lh2, textColor, accentEff);
+        drawWrappedAccent(ctx, hLines, PAD, y, lh2, textColor, accentEff, highlight, hSize);
       }
     });
   }
@@ -527,7 +566,7 @@ function drawSlide(canvas, slide, opts, index, total) {
       height: bLines.length * lh3,
       draw: function(y) {
         ctx.font = bFont;
-        drawWrappedAccent(ctx, bLines, PAD, y, lh3, bodyColor, accentEff);
+        drawWrappedAccent(ctx, bLines, PAD, y, lh3, bodyColor, accentEff, highlight, SZ.body);
       }
     });
   }
@@ -543,7 +582,7 @@ function drawSlide(canvas, slide, opts, index, total) {
       height: sLines.length * lh4,
       draw: function(y) {
         ctx.font = sFont;
-        drawWrappedAccent(ctx, sLines, PAD, y, lh4, mutedColor, accentEff);
+        drawWrappedAccent(ctx, sLines, PAD, y, lh4, mutedColor, accentEff, highlight, 28);
       }
     });
   }
@@ -1088,7 +1127,32 @@ function LeftPanel(props) {
       h(Toggle, { full: true, active: opts.grid, onClick: function() { update('grid', !opts.grid); } },
         'Сетка ' + (opts.grid ? '✓' : '')),
       h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.4 } },
-        'Полупрозрачная сетка 80px поверх фона.')
+        'Полупрозрачная сетка 80px поверх фона.'),
+      h('div', { style: { marginTop: 12 } },
+        h(Toggle, {
+          full: true,
+          active: opts.showBgEmoji !== false,
+          onClick: function() { update('showBgEmoji', opts.showBgEmoji === false); }
+        }, 'Эмодзи на фоне ' + (opts.showBgEmoji !== false ? '✓' : ''))
+      ),
+      h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.4 } },
+        'Большой эмодзи в углу слайда (задаётся для каждого слайда).')
+    ),
+    h(Section, { label: 'Акценты *звёздочки*' },
+      h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 } },
+        h(Toggle, {
+          full: true, dim: true,
+          active: (opts.highlightStyle || 'color') === 'color',
+          onClick: function() { update('highlightStyle', 'color'); }
+        }, 'Цветной текст'),
+        h(Toggle, {
+          full: true, dim: true,
+          active: opts.highlightStyle === 'marker',
+          onClick: function() { update('highlightStyle', 'marker'); }
+        }, 'Маркер-подсветка')
+      ),
+      h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.4 } },
+        '«Маркер» — подложка цвета акцента под словом (как highlighter).')
     ),
     h(Section, { label: 'Подпись и декор' },
       h(Field, { label: 'Ник в углу слайда' },
@@ -1243,6 +1307,43 @@ function SlideEditor(props) {
               placeholder: 'а вот что работает 👇'
             })
           )
+    ),
+    h(Section, { label: 'Эмодзи на фоне', defaultOpen: false },
+      h(Field, { label: 'Один большой эмодзи в углу (опц.)' },
+        h('div', { style: { display: 'flex', gap: 6 } },
+          h(TextInput, {
+            value: slide.bgEmoji,
+            onChange: function(v) { update('bgEmoji', v || null); },
+            placeholder: '🎁 или 🔥 или 💎'
+          }),
+          slide.bgEmoji && h('button', {
+            onClick: function() { update('bgEmoji', null); },
+            style: {
+              padding: '0 12px', background: UI.surfaceAlt, color: UI.muted,
+              borderRadius: 6, cursor: 'pointer', fontSize: 11,
+              border: '1px solid ' + UI.border
+            }
+          }, '×')
+        )
+      ),
+      slide.bgEmoji && h(Field, { label: 'Размер эмодзи' },
+        h(Range, {
+          min: 200, max: 700,
+          value: slide.bgEmojiSize || 480,
+          onChange: function(v) { update('bgEmojiSize', v); },
+          label: 'Размер · px'
+        })
+      ),
+      slide.bgEmoji && h(Field, { label: 'Прозрачность эмодзи' },
+        h(Range, {
+          min: 5, max: 60,
+          value: Math.round((slide.bgEmojiOpacity != null ? slide.bgEmojiOpacity : 0.18) * 100),
+          onChange: function(v) { update('bgEmojiOpacity', v / 100); },
+          label: 'Прозрачность'
+        })
+      ),
+      h('div', { style: { fontSize: 10, color: UI.dim, marginTop: 6, lineHeight: 1.4 } },
+        'Если в левой панели «Эмодзи на фоне» выключен — глобально скрыто.')
     ),
     h(Section, { label: 'Фото и подложка', defaultOpen: false },
       !slide.coverImage && h('label', {
@@ -1555,7 +1656,9 @@ function makeDefaults() {
 var DEFAULT_OPTS = {
   topic: 'Новая карусель', theme: 'dark', accent: '#D4FA27', fontId: 'mont',
   grid: true, nickname: '@andre',
-  showNickname: true, showSwipe: true, showProgress: true, swipeFilled: false
+  showNickname: true, showSwipe: true, showProgress: true, swipeFilled: false,
+  highlightStyle: 'color',  // 'color' | 'marker'
+  showBgEmoji: true
 };
 
 // ====================================================
