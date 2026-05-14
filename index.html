@@ -292,6 +292,17 @@ function roundRect(ctx, x, y, w, hh, r) {
   ctx.closePath();
 }
 
+function preprocessText(text) {
+  if (!text) return text;
+  text = text.replace(/`+/g, '');
+  try {
+    var emoji = /[\u{1F300}-\u{1FAFF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}]/u;
+    text = text.replace(new RegExp('([^\\s])([' + '\u{1F300}-\u{1FAFF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}' + '])', 'gu'), '$1 $2');
+    text = text.replace(new RegExp('([' + '\u{1F300}-\u{1FAFF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}' + '])([^\\s])', 'gu'), '$1 $2');
+  } catch (e) {}
+  return text;
+}
+
 function tokenizeAccent(text) {
   if (!text) return [];
   return text.split(/(\*[^*]+\*)/g).filter(function(s){ return s !== ''; });
@@ -299,6 +310,7 @@ function tokenizeAccent(text) {
 
 function wrapAccentText(ctx, text, maxWidth) {
   if (!text) return [];
+  text = preprocessText(text);
   var paragraphs = String(text).split('\n');
   var allLines = [];
   for (var p = 0; p < paragraphs.length; p++) {
