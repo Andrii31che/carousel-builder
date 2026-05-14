@@ -178,6 +178,34 @@ app.get('/api/example', (req, res) => {
   });
 });
 
+// ===== Reset brand state (clears posted topics) =====
+// POST /api/reset-state?brand=quanta&token=...
+app.post('/api/reset-state', (req, res) => {
+  const requiredToken = process.env.GENERATE_AUTH_TOKEN;
+  if (!requiredToken) {
+    return res.status(503).json({ ok: false, error: 'GENERATE_AUTH_TOKEN not configured' });
+  }
+  const got = req.header('X-Auth-Token') || req.query.token;
+  if (got !== requiredToken) {
+    return res.status(401).json({ ok: false, error: 'Invalid X-Auth-Token' });
+  }
+  const brand = (req.body && req.body.brand) || req.query.brand;
+  if (!brand) return res.status(400).json({ ok: false, error: '"brand" is required' });
+
+  const fs = require('fs');
+  const stateDir = fs.existsSync('/data') ? '/data' : path.join(__dirname, 'output');
+  const stateFile = path.join(stateDir, brand + '-state.json');
+  try {
+    if (fs.existsSync(stateFile)) {
+      fs.writeFileSync(stateFile, JSON.stringify({ posted_titles: [] }, null, 2));
+      return res.json({ ok: true, message: 'state cleared', brand, stateFile });
+    }
+    return res.json({ ok: true, message: 'no state file existed', brand, stateFile });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ===== Cron scheduler =====
 //
 // Env-driven cron jobs. Each var defines a schedule + brand.
