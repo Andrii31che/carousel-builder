@@ -1,18 +1,20 @@
 {
   "name": "Quanta Tech",
   "language": "ru",
-  "default_codeword": "СТАРТ",
-  "default_lead_magnet": "PDF: 7 промптов для маркетолога",
+  "default_codeword": "СТЕК",
+  "default_lead_magnet": "PDF: 21 AI-инструмент в одной подписке",
   "opts": {
-    "theme": "noir",
-    "accent": "#D4FA27",
+    "theme": "ocean",
+    "accent": "#06B6D4",
     "fontId": "mont",
     "nickname": "@quanta_tech",
     "grid": true,
     "showNickname": true,
     "showSwipe": true,
     "showProgress": true,
-    "swipeFilled": false
+    "swipeFilled": false,
+    "format": "feed"
   },
-  "_note": "Контекст Кванты пока минимальный. Когда дойдём — заполним system-prompt.md и topics.json"
+  "accent_palette": ["#06B6D4", "#A855F7", "#F59E0B", "#10B981", "#EC4899"],
+  "_note": "Quanta — тёмно-синий ocean фон, яркие акценты циан/фиолет/оранж/зелёный/розовый. Каждый слайд может иметь свой accent — Claude указывает в slide.accent для визуального разнообразия."
 }
