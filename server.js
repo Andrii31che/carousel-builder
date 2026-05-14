@@ -195,17 +195,38 @@ function runGenerate(brand) {
   child.on('close', code => console.log(`[cron] brand=${brand} exit=${code}`));
 }
 
+// Accept either:
+//   - real cron syntax: "0 9,14,19 * * *"
+//   - human-friendly: "09:00, 14:00, 19:00"  (all entries must share the same minutes)
+function parseFlexibleSchedule(str) {
+  if (!str) return null;
+  const trimmed = str.trim();
+  if (cron.validate(trimmed)) return trimmed;
+  const matches = trimmed.match(/(\d{1,2}):(\d{2})/g) || [];
+  if (matches.length === 0) return null;
+  const times = matches.map(m => {
+    const [h, mn] = m.split(':');
+    return { h: parseInt(h, 10), m: parseInt(mn, 10) };
+  });
+  const uniqMins = [...new Set(times.map(t => t.m))];
+  if (uniqMins.length !== 1) return null; // mixed minutes — not supported here
+  const hours = [...new Set(times.map(t => t.h))].sort((a, b) => a - b).join(',');
+  return `${uniqMins[0]} ${hours} * * *`;
+}
+
 function setupCron(envName, brand) {
-  const schedule = process.env[envName];
-  if (!schedule) return;
-  if (!cron.validate(schedule)) {
-    console.error(`[cron] invalid schedule for ${envName}: "${schedule}"`);
+  const raw = process.env[envName];
+  if (!raw) return;
+  const schedule = parseFlexibleSchedule(raw);
+  if (!schedule || !cron.validate(schedule)) {
+    console.error(`[cron] invalid schedule for ${envName}: "${raw}" (expected cron syntax or HH:MM, HH:MM, ...)`);
     return;
   }
   cron.schedule(schedule, () => runGenerate(brand), {
     timezone: process.env.TZ || 'UTC'
   });
-  console.log(`[cron] scheduled brand=${brand} at "${schedule}" TZ=${process.env.TZ || 'UTC'}`);
+  console.log(`[cron] scheduled brand=${brand} at "${schedule}" TZ=${process.env.TZ || 'UTC'}` +
+    (schedule !== raw ? ` (auto-converted from "${raw}")` : ''));
 }
 
 setupCron('CRON_TATIANA', 'tatiana');
