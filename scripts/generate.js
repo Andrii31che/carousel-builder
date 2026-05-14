@@ -60,11 +60,29 @@ const styleNote = loadFile('style.md', true);
 const topics = JSON.parse(loadFile('topics.json'));
 const config = JSON.parse(loadFile('config.json'));
 
-const nextTopic = topics.find(t => !t.posted);
+// ===== Persistent state =====
+// Mark posted in /data/<brand>-state.json (Railway Volume).
+// If volume not mounted — fallback to /app/output (lost on redeploy, but works).
+const STATE_DIR = fs.existsSync('/data') ? '/data' : path.join(ROOT, 'output');
+if (!fs.existsSync(STATE_DIR)) fs.mkdirSync(STATE_DIR, { recursive: true });
+const STATE_FILE = path.join(STATE_DIR, brand + '-state.json');
+
+function loadState() {
+  if (!fs.existsSync(STATE_FILE)) return { posted_titles: [] };
+  try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); }
+  catch (e) { return { posted_titles: [] }; }
+}
+function saveState(s) { fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2)); }
+
+const state = loadState();
+const isPosted = (t) => t.posted || state.posted_titles.includes(t.title);
+
+const nextTopic = topics.find(t => !isPosted(t));
 if (!nextTopic) {
   console.error(`[${brand}] No unposted topics left. Add more to brands/${brand}/topics.json`);
   process.exit(2);
 }
+console.log(`[${brand}] State: ${state.posted_titles.length} topic(s) already posted, picking: "${nextTopic.title}"`);
 
 const BUILDER_API_URL = process.env.BUILDER_API_URL ||
   'https://carousel-builder-production.up.railway.app/api/render';
@@ -234,15 +252,24 @@ async function sendToTelegram(files, captionText) {
 }
 
 function markPosted() {
-  const topicsPath = path.join(brandDir, 'topics.json');
-  const refresh = JSON.parse(fs.readFileSync(topicsPath, 'utf8'));
-  const idx = refresh.findIndex(t => t.title === nextTopic.title && !t.posted);
-  if (idx >= 0) {
-    refresh[idx].posted = true;
-    refresh[idx].posted_at = new Date().toISOString();
-    fs.writeFileSync(topicsPath, JSON.stringify(refresh, null, 2));
-    console.log(`[${brand}] Topic marked as posted`);
+  // Primary: write to persistent state.json (survives redeploy if Railway Volume mounted)
+  if (!state.posted_titles.includes(nextTopic.title)) {
+    state.posted_titles.push(nextTopic.title);
+    state.last_posted_at = new Date().toISOString();
+    saveState(state);
+    console.log(`[${brand}] Topic marked as posted in ${STATE_FILE}`);
   }
+  // Secondary: also try to write into topics.json (best-effort, lost on redeploy)
+  try {
+    const topicsPath = path.join(brandDir, 'topics.json');
+    const refresh = JSON.parse(fs.readFileSync(topicsPath, 'utf8'));
+    const idx = refresh.findIndex(t => t.title === nextTopic.title && !t.posted);
+    if (idx >= 0) {
+      refresh[idx].posted = true;
+      refresh[idx].posted_at = new Date().toISOString();
+      fs.writeFileSync(topicsPath, JSON.stringify(refresh, null, 2));
+    }
+  } catch (e) { /* ignore — state.json is authoritative */ }
 }
 
 async function main() {

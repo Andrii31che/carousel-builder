@@ -7,6 +7,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cron = require('node-cron');
+const { spawn } = require('child_process');
 const { drawSlide } = require('./lib/draw-node');
 
 const app = express();
@@ -175,6 +177,39 @@ app.get('/api/example', (req, res) => {
     curl: 'curl -X POST http://localhost:8080/api/render -H "Content-Type: application/json" -d @body.json'
   });
 });
+
+// ===== Cron scheduler =====
+//
+// Env-driven cron jobs. Each var defines a schedule + brand.
+//   CRON_TATIANA="0 9,14,19 * * *"   → запуск 9:00, 14:00, 19:00 каждый день
+//   CRON_QUANTA="30 11,16,21 * * *"  → запуск 11:30, 16:30, 21:30
+//   TZ="Europe/Madrid"               → таймзона (по умолчанию UTC)
+//
+// Если переменная не задана — для этого бренда cron не запускается.
+function runGenerate(brand) {
+  console.log(`[cron] firing generate for brand=${brand} at ${new Date().toISOString()}`);
+  const args = ['scripts/generate.js', '--brand=' + brand];
+  const child = spawn(process.execPath, args, { cwd: __dirname, env: process.env });
+  child.stdout.on('data', d => process.stdout.write(d));
+  child.stderr.on('data', d => process.stderr.write(d));
+  child.on('close', code => console.log(`[cron] brand=${brand} exit=${code}`));
+}
+
+function setupCron(envName, brand) {
+  const schedule = process.env[envName];
+  if (!schedule) return;
+  if (!cron.validate(schedule)) {
+    console.error(`[cron] invalid schedule for ${envName}: "${schedule}"`);
+    return;
+  }
+  cron.schedule(schedule, () => runGenerate(brand), {
+    timezone: process.env.TZ || 'UTC'
+  });
+  console.log(`[cron] scheduled brand=${brand} at "${schedule}" TZ=${process.env.TZ || 'UTC'}`);
+}
+
+setupCron('CRON_TATIANA', 'tatiana');
+setupCron('CRON_QUANTA', 'quanta');
 
 // ===== Start =====
 app.listen(PORT, () => {
